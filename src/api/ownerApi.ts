@@ -6,8 +6,10 @@ export const ownerApi = {
   
   // Venue Management
   getVenues: () => api.get('/owner/venues'),
+  getVenue: (id: number | string) => api.get(`/owner/venues/${id}`),
   createVenue: (data: any) => api.post('/owner/venues', data),
   updateVenue: (id: number | string, data: any) => api.put(`/owner/venues/${id}`, data),
+  getReports: (venueId: number | string, params?: any) => api.get(`/owner/venues/${venueId}/reports`, { params }),
   
   // Court Management
   getCourts: (venueId: number | string) => api.get(`/owner/venues/${venueId}/courts`),

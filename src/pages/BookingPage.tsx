@@ -57,7 +57,7 @@ const BookingPage = () => {
     socketService.connect();
     
     // Join all court rooms for this venue to receive updates
-    if (venue.courts) {
+    if (venue?.courts) {
       venue.courts.forEach((court: any) => {
         socketService.joinCourt(court.id);
       });
@@ -80,7 +80,7 @@ const BookingPage = () => {
     return () => {
       socketService.disconnect();
     };
-  }, [venue.courts, selectedSlotIds, venueId, queryClient, enqueueSnackbar]);
+  }, [venue?.courts, selectedSlotIds, venueId, queryClient, enqueueSnackbar]);
 
   // Group slots by court and start_time
   const gridData = useMemo(() => {
@@ -105,7 +105,7 @@ const BookingPage = () => {
     mutationFn: bookingApi.createBooking,
     onSuccess: (res: any) => {
       enqueueSnackbar('Đặt sân thành công! 🎉', { variant: 'success' });
-      navigate(`/bookings/${res.data.id}`);
+      navigate(`/bookings/${res.data.booking_code}`);
     },
     onError: (err: any) => enqueueSnackbar(err.message || 'Đặt sân thất bại', { variant: 'error' })
   });

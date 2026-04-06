@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
@@ -40,9 +41,20 @@ const BookingSuccessPage = () => {
 
   const copyId = () => {
     if (!booking) return;
-    navigator.clipboard.writeText(booking.id.toString());
+    navigator.clipboard.writeText(booking.booking_code.toString());
     enqueueSnackbar('Đã sao chép mã đặt sân', { variant: 'success' });
   };
+
+  const groupedSlots = useMemo(() => {
+    if (!booking?.slots) return [];
+    const groups: any = {};
+    booking.slots.forEach((s: any) => {
+      const cId = s.court_id;
+      if (!groups[cId]) groups[cId] = { name: s.court?.name || 'Sân con', slots: [] };
+      groups[cId].slots.push(s);
+    });
+    return Object.values(groups);
+  }, [booking]);
 
   if (isLoading) return <Box sx={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CircularProgress /></Box>;
   if (error || !booking) return <Container sx={{ py: 10 }}><Alert severity="error">Không tìm thấy thông tin lượt đặt.</Alert></Container>;
@@ -74,7 +86,7 @@ const BookingSuccessPage = () => {
               
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 3 }}>
                 <Typography variant="body2" sx={{ fontWeight: 800, color: 'text.secondary' }}>
-                   Mã đặt sân: #{booking.id.toString().padStart(6, '0')}
+                   Mã đặt sân: #{booking.booking_code.toString().padStart(6, '0')}
                 </Typography>
                 <IconButton size="small" onClick={copyId} sx={{ p: 0.5 }}><ContentCopy fontSize="inherit" /></IconButton>
               </Box>
@@ -112,11 +124,11 @@ const BookingSuccessPage = () => {
                     <DirectionsRun />
                   </Box>
                   <Box>
-                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block' }}>ĐỊA ĐIỂM & SÂN</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block' }}>ĐỊA ĐIỂM</Typography>
                     <Typography variant="body1" sx={{ fontWeight: 800 }}>
-                      {booking.court?.venue?.name} — {booking.court?.name}
+                      {booking.slots?.[0]?.court?.venue?.name || 'Pickleball Center'}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">{booking.court?.venue?.address}</Typography>
+                    <Typography variant="caption" color="text.secondary">{booking.slots?.[0]?.court?.venue?.address}</Typography>
                   </Box>
                 </Box>
 
@@ -124,14 +136,23 @@ const BookingSuccessPage = () => {
                   <Box sx={{ p: 1, bgcolor: '#F0FDF4', borderRadius: 2, display: 'flex', color: 'success.main' }}>
                     <AccessTime />
                   </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block' }}>THỜI GIAN CHƠI</Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 800 }}>
-                      {booking.slot?.date ? new Date(booking.slot.date).toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
+                  <Box sx={{ width: '100%' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block' }}>DANH SÁCH GIỜ CHƠI</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 800, mb: 1 }}>
+                       {booking.slots?.[0]?.date ? new Date(booking.slots[0].date).toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
                     </Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 900, color: 'primary.main', mt: 0.5 }}>
-                      {booking.slot?.start_time?.slice(0, 5)} - {booking.slot?.end_time?.slice(0, 5)}
-                    </Typography>
+                    
+                    {groupedSlots.map((group: any, idx: number) => (
+                      <Box key={idx} sx={{ 
+                        mb: idx !== groupedSlots.length - 1 ? 2 : 0,
+                        p: 1.5, borderRadius: 2, bgcolor: '#F8FAFC', borderLeft: '4px solid #0EA5E9'
+                      }}>
+                         <Typography variant="body2" sx={{ fontWeight: 900, color: 'primary.main' }}>{group.name}</Typography>
+                         <Typography variant="body1" sx={{ fontWeight: 800 }}>
+                            {group.slots[0].start_time.slice(0, 5)} - {group.slots[group.slots.length - 1].end_time.slice(0, 5)}
+                         </Typography>
+                      </Box>
+                    ))}
                   </Box>
                 </Box>
 

@@ -1,198 +1,161 @@
-import { useState, useMemo, useEffect } from 'react';
-import { useParams, useOutletContext } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useOutletContext, Link } from 'react-router-dom';
 import { 
-  Box, Typography, Card, Button, Stack, Chip, 
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  IconButton, Tooltip, CircularProgress, Alert, TextField, InputAdornment,
-  Dialog, DialogTitle, DialogContent, DialogActions, Grid, MenuItem
+  Box, Card, Typography, Chip, 
+  Button, TextField, MenuItem, Stack 
 } from '@mui/material';
-import { 
-  Search, FilterList, AccessTime, CheckCircle, 
-  Cancel, Payments, Contacts, Info, ReceiptLong, Visibility, AccountBalanceWallet
-} from '@mui/icons-material';
+import { Search } from '@mui/icons-material';
 import { ownerApi } from '@/api/ownerApi';
-import { useSnackbar } from 'notistack';
-import { socketService } from '@/utils/socket';
-import { useAuthStore } from '@/stores/authStore';
+import DataTable, { Column } from '@/components/DataTable';
 
 const OwnerBookings = () => {
   const { venueId }: any = useOutletContext();
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [status, setStatus] = useState('all');
   const [search, setSearch] = useState('');
-  const { enqueueSnackbar } = useSnackbar();
-  const queryClient = useQueryClient();
-  const { user } = useAuthStore();
 
-  console.log('Current Owner:', user?.name); // Use user to clear lint
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['owner-bookings', venueId, status, search],
-    queryFn: () => ownerApi.getBookings({ venue_id: venueId, status, search }),
-    enabled: !!venueId
+  const { data, isLoading } = useQuery({
+    queryKey: ['owner-bookings', venueId, page, rowsPerPage, status, search],
+    queryFn: () => ownerApi.getBookings({ 
+      venue_id: venueId, 
+      page: page + 1, 
+      limit: rowsPerPage, 
+      status: status === 'all' ? undefined : status,
+      search: search || undefined
+    }),
+    enabled: !!venueId,
   });
 
-  // Real-time notifications
-  useEffect(() => {
-    if (venueId) {
-      socketService.connect();
-      socketService.joinVenue(venueId);
+  const bookings = data?.data?.rows || [];
+  const total = data?.data?.count || 0;
 
-      socketService.onNewBooking((data) => {
-        enqueueSnackbar(`🆕 Đơn đặt sân mới: ${data.booking.booking_code}!`, { 
-          variant: 'info',
-          autoHideDuration: 10000 
-        });
-        queryClient.invalidateQueries({ queryKey: ['owner-bookings'] });
-      });
+  const STATUS_LABELS: any = {
+    pending: { label: 'Chờ thanh toán', color: 'warning' },
+    confirmed: { label: 'Đã xác nhận', color: 'success' },
+    cancelled: { label: 'Đã hủy', color: 'error' },
+    completed: { label: 'Hoàn thành', color: 'info' }
+  };
 
-      socketService.onBookingStatusUpdated((data) => {
-        console.log('Booking status updated:', data);
-        queryClient.invalidateQueries({ queryKey: ['owner-bookings'] });
-      });
-    }
-
-    return () => {
-      socketService.disconnect();
-    };
-  }, [venueId, queryClient, enqueueSnackbar]);
-
-  const confirmMutation = useMutation({
-    mutationFn: (id: number) => ownerApi.confirmBookingPayment(id),
-    onSuccess: () => {
-      enqueueSnackbar('Đã xác nhận thanh toán thành công!', { variant: 'success' });
-      queryClient.invalidateQueries({ queryKey: ['owner-bookings'] });
+  const columns: Column<any>[] = [
+    {
+      key: 'code',
+      label: 'MÃ ĐƠN / NGÀY',
+      render: (row) => (
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 800, color: 'primary.main' }}>#{row.booking_number}</Typography>
+          <Typography variant="caption" color="text.secondary">{new Date(row.booking_date).toLocaleDateString('vi-VN')}</Typography>
+        </Box>
+      )
     },
-    onError: (err: any) => enqueueSnackbar(err.message || 'Lỗi khi xác nhận', { variant: 'error' })
-  });
+    {
+      key: 'customer',
+      label: 'KHÁCH HÀNG',
+      render: (row) => (
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 700 }}>{row.user?.name}</Typography>
+          <Typography variant="caption" color="text.secondary">{row.user?.phone}</Typography>
+        </Box>
+      )
+    },
+    {
+      key: 'court',
+      label: 'SÂN / GIỜ',
+      render: (row) => {
+        const slots = row.slots || [];
+        const uniqueCourts = Array.from(new Set(slots.map((s: any) => s.court?.name))).filter(Boolean);
+        const startTime = slots[0]?.start_time?.slice(0, 5);
+        const endTime = slots[slots.length - 1]?.end_time?.slice(0, 5);
 
-  const bookings = data?.data?.bookings || [];
-
-  if (isLoading) return <Box sx={{ py: 10, textAlign: 'center' }}><CircularProgress /></Box>;
-  if (error) return <Alert severity="error">Không thể tải danh sách đặt sân.</Alert>;
+        return (
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              {uniqueCourts.join(', ') || 'N/A'}
+            </Typography>
+            <Typography variant="caption" display="block">
+              {slots[0]?.date ? new Date(slots[0].date).toLocaleDateString('vi-VN') : ''} | {startTime} - {endTime}
+            </Typography>
+          </Box>
+        );
+      }
+    },
+    {
+      key: 'total_price',
+      label: 'THÀNH TIỀN',
+      render: (row) => (
+        <Typography variant="body2" sx={{ fontWeight: 900 }}>
+          {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(row.total_price)}
+        </Typography>
+      )
+    },
+    {
+      key: 'status',
+      label: 'TRẠNG THÁI',
+      render: (row) => (
+        <Chip 
+          label={STATUS_LABELS[row.status]?.label || row.status} 
+          color={STATUS_LABELS[row.status]?.color || 'default'} 
+          size="small"
+          sx={{ fontWeight: 800, fontSize: 10 }}
+        />
+      )
+    },
+    {
+      key: 'actions',
+      label: 'THAO TÁC',
+      align: 'right',
+      render: (row) => (
+        <Button size="small" variant="outlined" component={Link} to={`/owner/bookings/${row.id}`} sx={{ borderRadius: 1, fontWeight: 700 }}>
+          Chi tiết
+        </Button>
+      )
+    }
+  ];
 
   return (
     <Box>
-      <Card sx={{ p: 4, borderRadius: 1.5, mb: 4, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #E2E8F0' }}>
-        <Typography variant="h6" sx={{ fontWeight: 900, mb: 3, fontFamily: 'Times New Roman' }}>🎯 Quản lý Lịch đặt sân</Typography>
-        
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 4 }}>
-          <TextField
-            placeholder="Tìm theo mã đơn, khách hàng..."
-            size="small"
-            sx={{ flexGrow: 1 }}
+      <Card sx={{ p: 4, borderRadius: 3, border: '1px solid #F1F5F9', boxShadow: 'none' }}>
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h5" sx={{ fontWeight: 950, fontFamily: 'Times New Roman' }}>Lịch sử Đặt sân 📅</Typography>
+          <Typography variant="body2" color="text.secondary">Quản lý và theo dõi tất cả các đơn đặt sân của cơ sở.</Typography>
+        </Box>
+
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 4 }}>
+          <TextField 
+            size="small" 
+            placeholder="Tìm kiếm mã đơn, tên khách..." 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            InputProps={{ startAdornment: <Search sx={{ mr: 1, color: 'text.disabled' }} /> }}
+            sx={{ flexGrow: 1 }}
+            InputProps={{ startAdornment: <Search fontSize="small" color="action" sx={{ mr: 1 }} />, sx: { borderRadius: 2 } }}
           />
           <TextField
             select
-            label="Bộ lọc Trạng thái"
             size="small"
-            sx={{ minWidth: 200 }}
             value={status}
             onChange={(e) => setStatus(e.target.value)}
+            sx={{ minWidth: 200 }}
+            InputProps={{ sx: { borderRadius: 2 } }}
           >
-            <MenuItem value="">Tất cả lượt đặt</MenuItem>
+            <MenuItem value="all">Tất cả trạng thái</MenuItem>
+            <MenuItem value="pending">Chờ thanh toán</MenuItem>
             <MenuItem value="confirmed">Đã xác nhận</MenuItem>
-            <MenuItem value="checked_in">Đã check-in</MenuItem>
-            <MenuItem value="completed">Đã hoàn thành</MenuItem>
+            <MenuItem value="completed">Hoàn thành</MenuItem>
             <MenuItem value="cancelled">Đã hủy</MenuItem>
           </TextField>
         </Stack>
 
-        <TableContainer sx={{ borderRadius: 1, border: '1px solid #F1F5F9' }}>
-          <Table>
-            <TableHead sx={{ bgcolor: '#F8FAFC' }}>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 800 }}>Mã đơn</TableCell>
-                <TableCell sx={{ fontWeight: 800 }}>Khách hàng</TableCell>
-                <TableCell sx={{ fontWeight: 800 }}>Sân & Khung giờ</TableCell>
-                <TableCell sx={{ fontWeight: 800 }}>Thanh toán / Phương thức</TableCell>
-                <TableCell sx={{ fontWeight: 800 }}>Tổng tiền</TableCell>
-                <TableCell sx={{ fontWeight: 800 }} align="center">Thao tác</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {bookings.map((booking: any) => (
-                <TableRow key={booking.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                  <TableCell>
-                     <Typography variant="body2" sx={{ fontWeight: 800, color: 'primary.main' }}>
-                        #{booking.booking_code || booking.id}
-                     </Typography>
-                     <Chip label={booking.status} size="small" variant="outlined" sx={{ fontWeight: 700, fontSize: '0.6rem', height: 18, mt: 0.5 }} />
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>{booking.user?.name || booking.customer_name || 'Khách vãng lai'}</Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{booking.user?.phone || booking.customer_phone}</Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>{booking.court?.name}</Typography>
-                    {booking.slots?.map((s: any, idx: number) => (
-                      <Typography key={idx} variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
-                        • {new Date(s.date).toLocaleDateString('vi-VN')} | {s.start_time.slice(0, 5)}-{s.end_time.slice(0, 5)}
-                      </Typography>
-                    ))}
-                  </TableCell>
-                  <TableCell>
-                    <Stack spacing={0.5}>
-                       <Chip 
-                        label={booking.payment_status === 'paid' ? 'Đã thu tiền' : 'Chưa thu tiền'} 
-                        size="small" 
-                        color={booking.payment_status === 'paid' ? 'success' : 'warning'} 
-                        sx={{ fontWeight: 800, width: 'fit-content' }}
-                      />
-                      <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontWeight: 600, color: 'text.secondary' }}>
-                         {booking.payment_method === 'cash' ? <AccountBalanceWallet sx={{ fontSize: '0.9rem' }} /> : <Payments sx={{ fontSize: '0.9rem' }} />}
-                         {booking.payment_method === 'vnpay' ? 'VNPay' : 'Tiền mặt'}
-                      </Typography>
-                    </Stack>
-                  </TableCell>
-                  <TableCell>
-                     <Typography variant="body1" sx={{ fontWeight: 900, color: 'primary.dark' }}>
-                        {new Intl.NumberFormat('vi-VN').format(booking.total_price)}đ
-                     </Typography>
-                  </TableCell>
-                  <TableCell align="center">
-                    <Stack direction="row" spacing={1} justifyContent="center">
-                       <Tooltip title="Xem chi tiết">
-                        <IconButton size="small" color="primary" sx={{ border: '1px solid #E2E8F0' }}>
-                          <Visibility fontSize="small" />
-                        </IconButton>
-                       </Tooltip>
-                       
-                       {booking.payment_status !== 'paid' && booking.status !== 'cancelled' && (
-                         <Tooltip title="Xác nhận đã nhận tiền mặt">
-                            <Button 
-                              size="small" 
-                              variant="contained" 
-                              color="success" 
-                              startIcon={<CheckCircle />}
-                              onClick={() => {
-                                if(window.confirm('Xác nhận khách đã thanh toán tiền mặt cho đơn này?')) {
-                                  confirmMutation.mutate(booking.id);
-                                }
-                              }}
-                              sx={{ fontWeight: 700, borderRadius: 1 }}
-                            >
-                              XÁC NHẬN CẦM TIỀN
-                            </Button>
-                         </Tooltip>
-                       )}
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {bookings.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
-                     <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>Chưa có lượt đặt nào phù hợp với bộ lọc.</Typography>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <DataTable
+          columns={columns}
+          data={bookings}
+          isLoading={isLoading}
+          count={total}
+          page={page}
+          rowsPerPage={rowsPerPage}
+          onPageChange={(_, val) => setPage(val)}
+          onRowsPerPageChange={(e) => setRowsPerPage(parseInt(e.target.value, 10))}
+        />
       </Card>
     </Box>
   );

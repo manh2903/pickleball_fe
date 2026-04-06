@@ -45,14 +45,14 @@ const OwnerLayout = () => {
 
   const menuItems = [
     { text: 'Tổng quan', icon: <Dashboard />, path: '/owner/dashboard' },
+    { text: 'Quầy Check-in', icon: <QrCodeScanner />, path: '/owner/checkin' },
     { text: 'Lịch đặt sân', icon: <EventNote />, path: '/owner/bookings' },
     { text: 'Danh sách sân', icon: <SportsTennis />, path: '/owner/courts' },
     { text: 'Quản lý Nhân viên', icon: <Badge />, path: '/owner/staffs' },
-    { text: 'Quầy Check-in', icon: <QrCodeScanner />, path: '/owner/checkin' },
     { text: 'Báo cáo sự cố', icon: <ErrorOutline />, path: '/owner/incidents' },
-    { text: 'Ví tiền & Thanh toán', icon: <AccountBalanceWallet />, path: '/owner/wallet' },
     { text: 'Doanh thu', icon: <Assessment />, path: '/owner/reports' },
-    { text: 'Thông tin sân', icon: <Settings />, path: '/owner/settings' },
+    { text: 'Ví tiền & Thanh toán', icon: <AccountBalanceWallet />, path: '/owner/wallet' },
+    { text: 'Thông tin cơ sở', icon: <Settings />, path: '/owner/settings' },
   ];
 
   const drawer = (

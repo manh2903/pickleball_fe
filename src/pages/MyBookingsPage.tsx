@@ -103,11 +103,13 @@ const BookingItem = ({ booking, onCancel }: { booking: any, onCancel: (id: numbe
               </Avatar>
               <Box sx={{ minWidth: 0 }}>
                 <Typography variant="h6" noWrap sx={{ fontWeight: 900, fontFamily: 'Times New Roman', fontSize: '1.25rem', mb: 0.5 }}>
-                  {booking.court?.venue?.name}
+                  {booking.slots?.[0]?.court?.venue?.name || 'Pickleball Center'}
                 </Typography>
-                <Stack direction="row" spacing={1} alignItems="center">
-                   <Chip label={booking.court?.name} size="small" sx={{ fontWeight: 700, height: 20, fontSize: '0.65rem' }} />
-                   <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                   {Array.from(new Set(booking.slots?.map((s: any) => s.court?.name))).filter(Boolean).map((name: any) => (
+                      <Chip key={name} label={name} size="small" sx={{ fontWeight: 700, height: 20, fontSize: '0.65rem', mb: 0.5 }} />
+                   ))}
+                   <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, mb: 0.5 }}>
                       #{booking.booking_code}
                    </Typography>
                 </Stack>
@@ -122,17 +124,17 @@ const BookingItem = ({ booking, onCancel }: { booking: any, onCancel: (id: numbe
                   <CalendarMonth sx={{ color: 'primary.main', fontSize: '1.2rem', mt: 0.2 }} />
                   <Box>
                     <Typography variant="body2" sx={{ fontWeight: 800 }}>
-                      {new Date(booking.slot?.date).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      {booking.slots?.[0]?.date ? new Date(booking.slots[0].date).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A'}
                     </Typography>
                     <Typography variant="body2" sx={{ color: 'primary.main', fontWeight: 900 }}>
-                       {booking.slot?.start_time?.slice(0, 5)} — {booking.slot?.end_time?.slice(0, 5)}
+                       {booking.slots?.[0]?.start_time?.slice(0, 5)} — {booking.slots?.[booking.slots.length - 1]?.end_time?.slice(0, 5)}
                     </Typography>
                   </Box>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                   <LocationOn sx={{ color: '#64748B', fontSize: '1.2rem' }} />
-                  <Typography variant="caption" color="text.secondary" noWrap sx={{ fontWeight: 600 }}>
-                    {booking.court?.venue?.address}
+                  <Typography variant="caption" color="text.secondary" noWrap sx={{ fontWeight: 600, maxWidth: 200 }}>
+                    {booking.slots?.[0]?.court?.venue?.address}
                   </Typography>
                 </Box>
              </Stack>
@@ -150,7 +152,7 @@ const BookingItem = ({ booking, onCancel }: { booking: any, onCancel: (id: numbe
 
                <Button 
                 component={Link} 
-                to={`/bookings/${booking.id}`}
+                to={`/bookings/${booking.booking_code}`}
                 variant="outlined" 
                 color="primary"
                 endIcon={<ChevronRight />}

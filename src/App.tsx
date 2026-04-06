@@ -27,6 +27,8 @@ import OwnerStaffs from './pages/OwnerStaffs';
 import OwnerVenueAdd from './pages/OwnerVenueAdd';
 import OwnerIncidents from './pages/OwnerIncidents';
 import OwnerWallet from '@/pages/OwnerWallet';
+import OwnerSettings from './pages/OwnerSettings';
+import OwnerReports from './pages/OwnerReports';
 
 // Admin Sidebar & Dashboards
 import AdminLayout from './layouts/AdminLayout';
@@ -155,8 +157,8 @@ function App() {
             <Route path="venues/add" element={<OwnerVenueAdd />} />
             <Route path="incidents" element={<OwnerIncidents />} />
             <Route path="wallet" element={<OwnerWallet />} />
-            <Route path="settings" element={<Box sx={{ py: 10, textAlign: 'center' }}>Venue Settings Placeholder</Box>} />
-            <Route path="reports" element={<Box sx={{ py: 10, textAlign: 'center' }}>Revenue Reports Placeholder</Box>} />
+            <Route path="settings" element={<OwnerSettings />} />
+            <Route path="reports" element={<OwnerReports />} />
           </Route>
 
           {/* Admin Dashboard Routes */}
