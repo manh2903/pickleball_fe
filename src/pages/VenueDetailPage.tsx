@@ -330,7 +330,7 @@ const VenueDetailPage = () => {
                     size="large" 
                     sx={{ py: 1.8, borderRadius: 1.5, fontSize: '1.1rem', fontWeight: 900, boxShadow: '0 10px 15px -3px rgba(34,197,94,0.3)' }}
                     component={Link}
-                    to={`/booking/${venue.id}`}
+                    to={`/booking/${venue.slug}`}
                   >
                     XEM LỊCH TRỐNG 📅
                   </Button>

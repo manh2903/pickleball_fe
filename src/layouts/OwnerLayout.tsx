@@ -1,25 +1,47 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Box, Drawer, List, ListItem, ListItemButton, 
   ListItemIcon, ListItemText, Toolbar, Typography, 
   Divider, useTheme, useMediaQuery, IconButton,
-  Paper, Button, Select, MenuItem, FormControl, InputLabel
+  Paper, Button, Select, MenuItem, FormControl, InputLabel,
+  Stack, Badge, Avatar, Menu, Tooltip
 } from '@mui/material';
 import { 
   Dashboard, SportsTennis, EventNote, Settings, 
   Menu as MenuIcon, Storefront, QrCodeScanner, Assessment,
-  Badge, AddBusiness, ErrorOutline, AccountBalanceWallet
+  Badge as BadgeIcon, AddBusiness, ErrorOutline, AccountBalanceWallet,
+  Person, Logout
 } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ownerApi } from '@/api/ownerApi';
+import { useAuthStore } from '@/stores/authStore';
+
 const DRAWER_WIDTH = 280;
 
 const OwnerLayout = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const { user, logout } = useAuthStore();
+  
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+  const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleCloseUserMenu = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    logout();
+    handleCloseUserMenu();
+    navigate('/login');
+  };
 
   // Multi-venue support (Tier 1)
   const { data: venuesRes } = useQuery({ queryKey: ['owner-venues'], queryFn: () => ownerApi.getVenues() });
@@ -48,11 +70,12 @@ const OwnerLayout = () => {
     { text: 'Quầy Check-in', icon: <QrCodeScanner />, path: '/owner/checkin' },
     { text: 'Lịch đặt sân', icon: <EventNote />, path: '/owner/bookings' },
     { text: 'Danh sách sân', icon: <SportsTennis />, path: '/owner/courts' },
-    { text: 'Quản lý Nhân viên', icon: <Badge />, path: '/owner/staffs' },
+    { text: 'Quản lý Nhân viên', icon: <BadgeIcon />, path: '/owner/staffs' },
     { text: 'Báo cáo sự cố', icon: <ErrorOutline />, path: '/owner/incidents' },
     { text: 'Doanh thu', icon: <Assessment />, path: '/owner/reports' },
     { text: 'Ví tiền & Thanh toán', icon: <AccountBalanceWallet />, path: '/owner/wallet' },
     { text: 'Thông tin cơ sở', icon: <Settings />, path: '/owner/settings' },
+    { text: 'Danh sách cơ sở', icon: <SportsTennis />, path: '/owner/venues' },
   ];
 
   const drawer = (
@@ -197,27 +220,94 @@ const OwnerLayout = () => {
 
       <Box
         component="main"
-        sx={{ flexGrow: 1, p: { xs: 2, md: 4 }, width: { md: `calc(100% - ${DRAWER_WIDTH}px)` } }}
+        sx={{ 
+          flexGrow: 1, 
+          display: 'flex', 
+          flexDirection: 'column',
+          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` } 
+        }}
       >
-        <Paper sx={{ p: 3, mb: 4, borderRadius: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* TOP BAR - FIXED AT TOP, NO BORDER RADIUS */}
+        <Box
+          sx={{
+            py: 2, px: { xs: 2, md: 4 },
+            bgcolor: 'white',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            position: 'sticky',
+            top: 0,
+            zIndex: 100,
+            backdropFilter: 'blur(12px)',
+            background: 'rgba(255, 255, 255, 0.9)',
+          }}
+        >
           <Box>
-            <Typography variant="h5" sx={{ fontWeight: 800, fontFamily: 'Times New Roman' }}>
-              Chào mừng quay lại, Chủ sân! 👋
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Quản lý: <Box component="span" sx={{ fontWeight: 700, color: 'primary.main' }}>{venues.find((v: any) => v.id === activeVenueId)?.name || '...'}</Box>
+            <Typography variant="h5" sx={{ fontWeight: 900, fontFamily: 'Times New Roman', color: '#1E293B' }}>
+               Chào mừng, {user?.name} - Chủ sân! 👋 
             </Typography>
           </Box>
-          <Button component={Link} to="/" startIcon={<Storefront />} variant="outlined" size="small" sx={{ borderRadius: 1 }}>
-            Xem Marketplace
-          </Button>
-        </Paper>
+          
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Button 
+              component={Link} to="/" 
+              variant="text" 
+              size="small" 
+              sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'none', display: { xs: 'none', sm: 'block' } }}
+            >
+              Trang Marketplace
+            </Button>
+            <IconButton sx={{ bgcolor: '#F1F5F9', color: 'text.primary' }}>
+               <Badge color="error" variant="dot">
+                  <EventNote fontSize="small" />
+               </Badge>
+            </IconButton>
+            
+            <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+            
+            <Box>
+              <Tooltip title="Tài khoản">
+                <IconButton onClick={handleOpenUserMenu} sx={{ p: 0.5, border: '2px solid', borderColor: 'primary.light' }}>
+                  <Avatar alt={user?.name} src={user?.avatar} sx={{ width: 32, height: 32 }} />
+                </IconButton>
+              </Tooltip>
+              <Menu
+                sx={{ mt: '45px' }}
+                anchorEl={anchorEl}
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                keepMounted
+                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                open={Boolean(anchorEl)}
+                onClose={handleCloseUserMenu}
+              >
+                <MenuItem disabled>
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>{user?.name}</Typography>
+                    <Typography variant="caption" color="text.secondary">{user?.email}</Typography>
+                  </Box>
+                </MenuItem>
+                <Divider />
+                <MenuItem onClick={() => { handleCloseUserMenu(); navigate('/profile'); }}>
+                  <ListItemIcon><Person fontSize="small" /></ListItemIcon>
+                  <ListItemText primary="Hồ sơ cá nhân" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} />
+                </MenuItem>
+                <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
+                  <ListItemIcon><Logout fontSize="small" color="error" /></ListItemIcon>
+                  <ListItemText primary="Đăng xuất" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} />
+                </MenuItem>
+              </Menu>
+            </Box>
+          </Stack>
+        </Box>
 
-        <Outlet context={{ venueId: activeVenueId }} />
+        <Box sx={{ p: { xs: 2, md: 4 }, flexGrow: 1 }}>
+          <Outlet context={{ venueId: activeVenueId }} />
+        </Box>
       </Box>
     </Box>
   );
 };
 
 export default OwnerLayout;
-

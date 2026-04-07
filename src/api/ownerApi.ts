@@ -25,6 +25,8 @@ export const ownerApi = {
   // Staff Management
   getStaffs: (venueId: number | string) => api.get(`/owner/venues/${venueId}/staffs`),
   createStaff: (venueId: number | string, data: any) => api.post(`/owner/venues/${venueId}/staffs`, data),
+  updateStaff: (id: number | string, data: any) => api.put(`/owner/staffs/${id}`, data),
+  updateStaffPassword: (id: number | string, data: { password: string }) => api.patch(`/owner/staffs/${id}/password`, data),
   
   // Check-in (for Staff/Owner)
   checkIn: (bookingCode: string) => api.post('/staff/bookings/checkin', { booking_code: bookingCode }),

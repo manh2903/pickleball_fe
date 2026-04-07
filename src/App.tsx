@@ -23,6 +23,7 @@ import OwnerDashboard from './pages/OwnerDashboard';
 import OwnerBookings from './pages/OwnerBookings';
 import OwnerCheckin from './pages/OwnerCheckin';
 import OwnerCourts from './pages/OwnerCourts';
+import OwnerVenues from './pages/OwnerVenues';
 import OwnerStaffs from './pages/OwnerStaffs';
 import OwnerVenueAdd from './pages/OwnerVenueAdd';
 import OwnerIncidents from './pages/OwnerIncidents';
@@ -141,8 +142,8 @@ function App() {
           <Route path="/register-owner" element={<RegisterOwnerPage />} />
           <Route path="/marketplace" element={<MarketplacePage />} />
           <Route path="/venues/:slug" element={<VenueDetailPage />} />
-          <Route path="/booking/:venueId" element={<BookingPage />} />
-          <Route path="/bookings/:id" element={<BookingSuccessPage />} />
+          <Route path="/booking/:venueSlug" element={<BookingPage />} />
+          <Route path="/bookings/:bookingCode" element={<BookingSuccessPage />} />
           <Route path="/my-bookings" element={<MyBookingsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           
@@ -154,6 +155,7 @@ function App() {
             <Route path="checkin" element={<OwnerCheckin />} />
             <Route path="courts" element={<OwnerCourts />} />
             <Route path="staffs" element={<OwnerStaffs />} />
+            <Route path="venues" element={<OwnerVenues />} />
             <Route path="venues/add" element={<OwnerVenueAdd />} />
             <Route path="incidents" element={<OwnerIncidents />} />
             <Route path="wallet" element={<OwnerWallet />} />

@@ -24,7 +24,7 @@ import { socketService } from '@/utils/socket';
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 6:00 to 22:00
 
 const BookingPage = () => {
-  const { venueId } = useParams<{ venueId: string }>();
+  const { venueSlug } = useParams<{ venueSlug: string }>();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const { isAuthenticated, user } = useAuthStore();
@@ -57,16 +57,16 @@ const BookingPage = () => {
 
   // 1. Fetch Venue
   const { data: venueRes, isLoading: isLoadingVenue } = useQuery({
-    queryKey: ['venue-booking', venueId],
-    queryFn: () => venueApi.getVenueById(venueId!),
+    queryKey: ['venue-booking', venueSlug],
+    queryFn: () => venueApi.getVenueById(venueSlug!),
   });
   const venue = venueRes?.data;
 
   // 2. Fetch All Court Availability
   const { data: slotsRes, isLoading: isLoadingSlots } = useQuery({
-    queryKey: ['venue-slots', venueId, selectedDate.format('YYYY-MM-DD')],
-    queryFn: () => bookingApi.getAvailability({ venue_id: venueId, date: selectedDate.format('YYYY-MM-DD') }),
-    enabled: !!venueId,
+    queryKey: ['venue-slots', venueSlug, selectedDate.format('YYYY-MM-DD')],
+    queryFn: () => bookingApi.getAvailability({ venue_id: venueSlug, date: selectedDate.format('YYYY-MM-DD') }),
+    enabled: !!venueSlug,
   });
   const slots = slotsRes?.data?.slots || [];
 
@@ -92,13 +92,13 @@ const BookingPage = () => {
       }
 
       // Refresh availability data
-      queryClient.invalidateQueries({ queryKey: ['venue-slots', venueId] });
+      queryClient.invalidateQueries({ queryKey: ['venue-slots', venueSlug] });
     });
 
     return () => {
       socketService.disconnect();
     };
-  }, [venue?.courts, selectedSlotIds, venueId, queryClient, enqueueSnackbar]);
+  }, [venue?.courts, selectedSlotIds, venueSlug, queryClient, enqueueSnackbar]);
 
   // Group slots by court and start_time
   const gridData = useMemo(() => {
