@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Box, Container, Grid, Typography, Card, CardContent, CardMedia, 
-  Chip, Button, TextField, InputAdornment, Rating, Skeleton, Stack,
+  Chip, Button, TextField, InputAdornment, Skeleton, Stack,
   MenuItem, Select, FormControl, InputLabel, Drawer, Slider, 
   FormGroup, FormControlLabel, Checkbox, IconButton, Divider,
-  Fade, Zoom, Tooltip, Paper
+  Fade, Zoom, Paper, Pagination, CircularProgress
 } from '@mui/material';
 import { 
   Search, LocationOn, SportsTennis, FilterList, 
@@ -14,17 +14,14 @@ import {
 } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import { venueApi } from '@/api/venueApi';
+import { locationApi } from '@/api/locationApi';
+import { AMENITIES_LIST } from '@/constants/amenities';
 
-const AMENITIES_OPTIONS = ['Gửi xe', 'Wifi', 'Căng tin', 'Điều hòa', 'Mái che', 'Phòng tắm', 'VIP'];
-
-const parseArr = (val: any): string[] => {
-  if (Array.isArray(val)) return val;
-  if (typeof val === 'string') { try { return JSON.parse(val); } catch { return []; } }
-  return [];
-};
+const AMENITIES_OPTIONS = AMENITIES_LIST;
+const PAGE_SIZE = 8; // 2 rows × 4 cols
 
 const VenueCard = ({ venue }: { venue: any }) => {
-  const amenities = parseArr(venue.amenities);
+  const amenities = venue.amenities || [];
   return (
     <Card sx={{ 
       height: '100%', 
@@ -72,7 +69,7 @@ const VenueCard = ({ venue }: { venue: any }) => {
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5, color: '#64748B' }}>
           <LocationOn sx={{ fontSize: '1rem', mr: 0.5, color: 'primary.main' }} />
           <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
-            {venue.district}, {venue.city}
+            {venue.wardState?.ten || '...'}, {venue.provinceState?.ten_tinh || '...'}
           </Typography>
         </Box>
 
@@ -126,46 +123,94 @@ const VenueCard = ({ venue }: { venue: any }) => {
   );
 };
 
+// Blank filter state
+const BLANK_FILTERS = {
+  search: '', 
+  province_id: '',
+  ward_id: '',
+  price_min: 0, 
+  price_max: 1000000,
+  amenities: [] as string[],
+  min_rating: 0,
+};
+
 const MarketplacePage = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [filters, setFilters] = useState<any>({
-    search: '',
-    city: '',
-    district: '',
-    price_min: 0,
-    price_max: 500000,
-    amenities: [],
-    min_rating: 0,
-    page: 1,
-    limit: 12
+  const [page, setPage] = useState(1);
+
+  // "Applied" filters → used in API query key
+  const [appliedFilters, setAppliedFilters] = useState(BLANK_FILTERS);
+
+  // "Draft" filters → edited in drawer/search bar, NOT sent to API until Apply
+  const [draftFilters, setDraftFilters] = useState(BLANK_FILTERS);
+
+  // Locations Query
+  const { data: provinceRes } = useQuery({
+    queryKey: ['provinces'],
+    queryFn: () => locationApi.getProvinces(),
   });
+  const provinces = provinceRes?.data?.data || [];
+
+  const { data: wardRes, isLoading: isWardsLoading } = useQuery({
+    queryKey: ['wards', draftFilters.province_id],
+    queryFn: () => locationApi.getWards(draftFilters.province_id),
+    enabled: !!draftFilters.province_id,
+  });
+  const wards = wardRes?.data?.data || [];
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['venues', filters],
-    queryFn: () => venueApi.getVenues(filters),
+    queryKey: ['venues', appliedFilters, page],
+    queryFn: () => venueApi.getVenues({ ...appliedFilters, page, limit: PAGE_SIZE }),
   });
 
-  const handleAmenityChange = (amenity: string) => {
-    setFilters((prev: any) => {
+  const handleApplyFilters = useCallback(() => {
+    setAppliedFilters({ ...draftFilters });
+    setPage(1);
+    setDrawerOpen(false);
+  }, [draftFilters]);
+
+  const handleSearchApply = () => {
+    setAppliedFilters({ ...draftFilters });
+    setPage(1);
+  };
+
+  const handleDraftAmenityChange = (amenity: string) => {
+    setDraftFilters(prev => {
       const newAmenities = prev.amenities.includes(amenity)
-        ? prev.amenities.filter((a: string) => a !== amenity)
+        ? prev.amenities.filter(a => a !== amenity)
         : [...prev.amenities, amenity];
       return { ...prev, amenities: newAmenities };
     });
   };
 
-  const resetFilters = () => {
-    setFilters({
-      search: '',
-      city: '',
-      district: '',
-      price_min: 0,
-      price_max: 500000,
-      amenities: [],
-      min_rating: 0,
-      page: 1,
-      limit: 12
-    });
+  const handleProvinceChange = (province_id: string) => {
+    setDraftFilters(prev => ({ 
+      ...prev, 
+      province_id, 
+      ward_id: '' 
+    }));
+  };
+
+  const resetAll = () => {
+    setDraftFilters({ ...BLANK_FILTERS });
+    setAppliedFilters({ ...BLANK_FILTERS });
+    setPage(1);
+    setDrawerOpen(false);
+  };
+
+  const totalPages = Math.ceil((data?.data?.total || 0) / PAGE_SIZE);
+
+  const getAppliedProvinceName = () => {
+    if (!appliedFilters.province_id) return '';
+    const p = provinces.find((p: any) => p.ma_tinh === appliedFilters.province_id);
+    return p?.ten_tinh || '';
+  };
+
+  const getAppliedWardName = () => {
+    if (!appliedFilters.ward_id) return '';
+    // This is tricky as wards might not be loaded for applied filter if not in draft
+    // But usually for chip display it's okay
+    return "Phường/Xã"; 
   };
 
   return (
@@ -179,7 +224,6 @@ const MarketplacePage = () => {
         color: 'white',
         overflow: 'hidden'
       }}>
-        {/* Abstract background shapes */}
         <Box sx={{ position: 'absolute', top: -100, right: -100, width: 400, height: 400, borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', filter: 'blur(80px)' }} />
         <Box sx={{ position: 'absolute', bottom: -50, left: -50, width: 300, height: 300, borderRadius: '50%', background: 'rgba(5, 150, 105, 0.1)', filter: 'blur(60px)' }} />
 
@@ -190,19 +234,16 @@ const MarketplacePage = () => {
                 Sân Chơi Pickleball Hub ✨
               </Typography>
               <Typography variant="h5" sx={{ textAlign: 'center', mb: 8, opacity: 0.9, fontWeight: 400, maxWidth: 700, mx: 'auto', lineHeight: 1.6 }}>
-                Tìm kiếm và đặt lịch hàng trăm cụm sân chuẩn quốc tế. Trải nghiệm thể thao chưa bao giờ dễ dàng đến thế.
+                Tìm kiếm và đặt lịch hàng trăm cụm sân chuẩn quốc tế.
               </Typography>
             </Box>
           </Fade>
 
           <Zoom in style={{ transitionDelay: '300ms' }}>
             <Paper sx={{ 
-              p: 1, 
-              borderRadius: 2, 
+              p: 1, borderRadius: 2,
               boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', 
-              maxWidth: 1000, 
-              mx: 'auto',
-              border: '1px solid rgba(255,255,255,0.1)',
+              maxWidth: 1000, mx: 'auto',
               bgcolor: 'rgba(255,255,255,0.98)',
               backdropFilter: 'blur(10px)'
             }}>
@@ -210,55 +251,54 @@ const MarketplacePage = () => {
                 <Grid item xs={12} md={5}>
                   <TextField 
                     fullWidth 
-                    placeholder="Bạn muốn chơi ở đâu? (Tên sân, quận...)" 
+                    placeholder="Bạn muốn chơi ở đâu? (Tên sân, địa chỉ...)" 
                     variant="standard" 
-                    value={filters.search}
-                    onChange={(e) => setFilters((prev: any) => ({ ...prev, search: e.target.value }))}
+                    value={draftFilters.search}
+                    onChange={(e) => setDraftFilters(prev => ({ ...prev, search: e.target.value }))}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearchApply()}
                     InputProps={{
                       disableUnderline: true,
                       startAdornment: <InputAdornment position="start"><Search color="primary" sx={{ ml: 2, mr: 1 }} /></InputAdornment>,
                     }}
-                    sx={{ 
-                      px: 2, py: 1, 
-                      '& input': { fontWeight: 600, color: '#1E293B' }
-                    }}
+                    sx={{ px: 2, py: 1, '& input': { fontWeight: 600, color: '#1E293B' } }}
                   />
                 </Grid>
                 <Grid item xs={6} md={3} sx={{ borderLeft: { md: '1px solid #E2E8F0' } }}>
                   <FormControl variant="standard" fullWidth sx={{ px: 2 }}>
-                    <InputLabel id="city-select-label" sx={{ ml: 2, fontWeight: 700 }}>Tỉnh/Thành phố</InputLabel>
+                    <InputLabel id="city-label" sx={{ ml: 2, fontWeight: 700 }}>Tỉnh/Thành phố</InputLabel>
                     <Select
-                      labelId="city-select-label"
-                      value={filters.city}
+                      labelId="city-label"
+                      value={draftFilters.province_id}
                       label="Tỉnh/Thành phố"
-                      onChange={(e) => setFilters((prev: any) => ({ ...prev, city: e.target.value as string }))}
+                      onChange={(e) => handleProvinceChange(e.target.value)}
                       disableUnderline
                       sx={{ fontWeight: 700, pt: 1 }}
                     >
                       <MenuItem value="">Tất cả khu vực</MenuItem>
-                      <MenuItem value="Hà Nội">Hà Nội</MenuItem>
-                      <MenuItem value="Hồ Chí Minh">TP. Hồ Chí Minh</MenuItem>
-                      <MenuItem value="Đà Nẵng">Đà Nẵng</MenuItem>
+                      {provinces.map((p: any) => (
+                        <MenuItem key={p.ma_tinh} value={p.ma_tinh}>{p.ten_tinh}</MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
                 </Grid>
                 <Grid item xs={6} md={2} sx={{ borderLeft: { md: '1px solid #E2E8F0' } }}>
                   <Button 
-                    fullWidth 
-                    size="large" 
+                    fullWidth size="large" 
                     onClick={() => setDrawerOpen(true)}
                     sx={{ py: 1.5, fontWeight: 800, color: '#475569' }}
                     startIcon={<FilterList />}
                   >
                     Bộ lọc
+                    {(draftFilters.amenities.length > 0 || draftFilters.min_rating > 0 || draftFilters.price_max < 1000000 || draftFilters.ward_id) && (
+                      <Box component="span" sx={{ ml: 1, width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main', display: 'inline-block' }} />
+                    )}
                   </Button>
                 </Grid>
                 <Grid item xs={12} md={2}>
                   <Button 
-                    fullWidth 
-                    variant="contained" 
-                    size="large" 
-                    sx={{ py: 2, borderRadius: 1.5, fontWeight: 900, fontSize: '1rem', bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' } }}
+                    fullWidth variant="contained" size="large" 
+                    onClick={handleSearchApply}
+                    sx={{ py: 2, borderRadius: 1.5, fontWeight: 900, fontSize: '1rem' }}
                   >
                     TÌM KIẾM
                   </Button>
@@ -269,25 +309,35 @@ const MarketplacePage = () => {
         </Container>
       </Box>
 
-      {/* Main Content Area */}
+      {/* Main Content */}
       <Container maxWidth="lg" sx={{ mt: 8 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-end" mb={6}>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-end" mb={4}>
           <Box>
-            <Typography variant="h4" sx={{ fontWeight: 900, mb: 1, fontFamily: 'Times New Roman' }}>Sân đang sẵn sàng</Typography>
+            <Typography variant="h4" sx={{ fontWeight: 900, mb: 0.5, fontFamily: 'Times New Roman' }}>Sân đang sẵn sàng</Typography>
             <Typography variant="body1" color="text.secondary">
-              Có {isLoading ? '...' : data?.data?.total || 0} cơ sở phù hợp với tiêu chí của bạn
+              Có {isLoading ? '...' : data?.data?.total || 0} cơ sở · Trang {page}/{totalPages || 1}
             </Typography>
           </Box>
-          <Stack direction="row" spacing={1.5}>
-            {filters.city && <Chip label={filters.city} onDelete={() => setFilters((p: any) => ({ ...p, city: '' }))} sx={{ fontWeight: 700 }} />}
-            {filters.amenities.length > 0 && <Chip label={`${filters.amenities.length} Tiện ích`} onDelete={() => setFilters((p: any) => ({ ...p, amenities: [] }))} sx={{ fontWeight: 700 }} />}
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            {appliedFilters.province_id && (
+              <Chip label={getAppliedProvinceName()} onDelete={() => { setAppliedFilters(p => ({ ...p, province_id: '' })); setDraftFilters(p => ({ ...p, province_id: '' })); setPage(1); }} sx={{ fontWeight: 700 }} />
+            )}
+             {appliedFilters.ward_id && (
+              <Chip label={getAppliedWardName()} onDelete={() => { setAppliedFilters(p => ({ ...p, ward_id: '' })); setDraftFilters(p => ({ ...p, ward_id: '' })); setPage(1); }} sx={{ fontWeight: 700 }} />
+            )}
+            {appliedFilters.amenities.length > 0 && (
+              <Chip label={`${appliedFilters.amenities.length} Tiện ích`} onDelete={() => { setAppliedFilters(p => ({ ...p, amenities: [] })); setDraftFilters(p => ({ ...p, amenities: [] })); setPage(1); }} sx={{ fontWeight: 700 }} />
+            )}
+            {appliedFilters.search && (
+              <Chip label={`"${appliedFilters.search}"`} onDelete={() => { setAppliedFilters(p => ({ ...p, search: '' })); setDraftFilters(p => ({ ...p, search: '' })); setPage(1); }} sx={{ fontWeight: 700 }} />
+            )}
           </Stack>
         </Stack>
 
         {isLoading ? (
-          <Grid container spacing={4}>
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Grid item xs={12} sm={6} md={4} key={i}>
+          <Grid container spacing={3}>
+            {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+              <Grid item xs={12} sm={6} md={3} key={i}>
                 <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 1.5, mb: 2 }} />
                 <Skeleton width="80%" sx={{ mb: 1 }} />
                 <Skeleton width="40%" />
@@ -300,19 +350,39 @@ const MarketplacePage = () => {
             <Button onClick={() => window.location.reload()} sx={{ mt: 2 }} variant="outlined">Thử lại</Button>
           </Box>
         ) : data?.data?.venues?.length > 0 ? (
-          <Grid container spacing={4}>
-            {data?.data?.venues.map((venue: any) => (
-              <Grid item xs={12} sm={6} md={4} key={venue.id}>
-                <VenueCard venue={venue} />
-              </Grid>
-            ))}
-          </Grid>
+          <>
+            <Grid container spacing={3}>
+              {data?.data?.venues?.map((venue: any) => (
+                <Grid item xs={12} sm={6} md={3} key={venue.id}>
+                  <VenueCard venue={venue} />
+                </Grid>
+              ))}
+            </Grid>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
+                <Pagination 
+                  count={totalPages}
+                  page={page}
+                  onChange={(_, val) => { setPage(val); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  color="primary"
+                  size="large"
+                  shape="rounded"
+                  sx={{
+                    '& .MuiPaginationItem-root': { fontWeight: 800, borderRadius: 1.5 },
+                    '& .Mui-selected': { boxShadow: '0 4px 6px -1px rgba(34,197,94,0.3)' }
+                  }}
+                />
+              </Box>
+            )}
+          </>
         ) : (
           <Box sx={{ textAlign: 'center', py: 15, bgcolor: 'white', borderRadius: 2, border: '1px dashed #CBD5E1' }}>
             <SportsTennis sx={{ fontSize: 80, color: '#E2E8F0', mb: 2 }} />
             <Typography variant="h5" sx={{ fontWeight: 800, color: 'text.secondary', mb: 1 }}>Không tìm thấy kết quả nào</Typography>
             <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>Hãy thử thay đổi tiêu chí lọc hoặc xóa bộ lọc hiện tại.</Typography>
-            <Button onClick={resetFilters} variant="contained" startIcon={<RestartAlt />} sx={{ borderRadius: 2, px: 4, py: 1.5, fontWeight: 800 }}>Xóa tất cả bộ lọc</Button>
+            <Button onClick={resetAll} variant="contained" startIcon={<RestartAlt />} sx={{ borderRadius: 2, px: 4, py: 1.5, fontWeight: 800 }}>Xóa tất cả bộ lọc</Button>
           </Box>
         )}
       </Container>
@@ -322,32 +392,68 @@ const MarketplacePage = () => {
         anchor="right"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        PaperProps={{ sx: { width: { xs: '100%', sm: 400 }, p: 4, borderRadius: '20px 0 0 20px' } }}
+        PaperProps={{ sx: { width: { xs: '100%', sm: 400 }, p: 4, borderRadius: '20px 0 0 20px', display: 'flex', flexDirection: 'column' } }}
       >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 5 }}>
           <Typography variant="h5" sx={{ fontWeight: 900 }}>Bộ lọc nâng cao</Typography>
           <IconButton onClick={() => setDrawerOpen(false)} sx={{ bgcolor: '#F1F5F9' }}><Close /></IconButton>
         </Box>
 
-        <Stack spacing={5}>
+        <Stack spacing={5} sx={{ flexGrow: 1, overflowY: 'auto' }}>
+          {/* Location Detailed */}
+          <Box>
+            <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 3 }}>Vị trí chi tiết</Typography>
+             <Stack spacing={2}>
+                <FormControl fullWidth>
+                  <InputLabel id="drawer-province-label">Tỉnh/Thành phố</InputLabel>
+                  <Select
+                    labelId="drawer-province-label"
+                    value={draftFilters.province_id}
+                    label="Tỉnh/Thành phố"
+                    onChange={(e) => handleProvinceChange(e.target.value)}
+                    sx={{ borderRadius: 3 }}
+                  >
+                    <MenuItem value="">Tất cả</MenuItem>
+                    {provinces.map((p: any) => (
+                      <MenuItem key={p.ma_tinh} value={p.ma_tinh}>{p.ten_tinh}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl fullWidth disabled={!draftFilters.province_id || isWardsLoading}>
+                  <InputLabel id="drawer-ward-label">Phường/Xã</InputLabel>
+                  <Select
+                    labelId="drawer-ward-label"
+                    value={draftFilters.ward_id}
+                    label="Phường/Xã"
+                    onChange={(e) => setDraftFilters(p => ({ ...p, ward_id: e.target.value }))}
+                    sx={{ borderRadius: 3 }}
+                    endAdornment={isWardsLoading && <CircularProgress size={20} />}
+                  >
+                    <MenuItem value="">Tất cả phường/xã</MenuItem>
+                    {wards.map((w: any) => (
+                      <MenuItem key={w.ma} value={w.ma}>{w.ten}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+             </Stack>
+          </Box>
+
+          <Divider />
+
           {/* Price Range */}
           <Box>
             <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 3 }}>Khoảng giá (VNĐ/giờ)</Typography>
             <Slider
-              value={[filters.price_min, filters.price_max]}
-              onChange={(_, newValue: any) => setFilters((p: any) => ({ ...p, price_min: newValue[0], price_max: newValue[1] }))}
+              value={[draftFilters.price_min, draftFilters.price_max]}
+              onChange={(_, v: any) => setDraftFilters(p => ({ ...p, price_min: v[0], price_max: v[1] }))}
               valueLabelDisplay="auto"
-              min={0}
-              max={1000000}
-              step={50000}
-              sx={{ 
-                color: 'primary.main',
-                '& .MuiSlider-thumb': { width: 24, height: 24, border: '4px solid white', boxShadow: 3 }
-              }}
+              min={0} max={2000000} step={50000}
+              sx={{ color: 'primary.main', '& .MuiSlider-thumb': { width: 24, height: 24, border: '4px solid white', boxShadow: 3 } }}
             />
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-               <Typography variant="body2" sx={{ fontWeight: 800, bgcolor: '#F1F5F9', px: 1.5, py: 0.5, borderRadius: 1 }}>{new Intl.NumberFormat('vi-VN').format(filters.price_min)}đ</Typography>
-               <Typography variant="body2" sx={{ fontWeight: 800, bgcolor: '#F1F5F9', px: 1.5, py: 0.5, borderRadius: 1 }}>{new Intl.NumberFormat('vi-VN').format(filters.price_max)}đ</Typography>
+               <Typography variant="body2" sx={{ fontWeight: 800, bgcolor: '#F1F5F9', px: 1.5, py: 0.5, borderRadius: 1 }}>{new Intl.NumberFormat('vi-VN').format(draftFilters.price_min)}đ</Typography>
+               <Typography variant="body2" sx={{ fontWeight: 800, bgcolor: '#F1F5F9', px: 1.5, py: 0.5, borderRadius: 1 }}>{new Intl.NumberFormat('vi-VN').format(draftFilters.price_max)}đ</Typography>
             </Box>
           </Box>
 
@@ -357,18 +463,15 @@ const MarketplacePage = () => {
           <Box>
             <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 2 }}>Đánh giá tối thiểu</Typography>
             <Stack direction="row" spacing={1.5}>
-              {[3, 4, 4.5].map((rate) => (
+              {[3, 4, 4.5].map(rate => (
                 <Chip 
                   key={rate}
                   icon={<Star sx={{ fontSize: 18 }} />}
                   label={`${rate}+`}
-                  onClick={() => setFilters((p: any) => ({ ...p, min_rating: rate }))}
-                  color={filters.min_rating === rate ? 'primary' : 'default'}
-                  variant={filters.min_rating === rate ? 'filled' : 'outlined'}
-                  sx={{ 
-                    fontWeight: 800, height: 40, px: 2, 
-                    cursor: 'pointer', transition: 'all 0.2s'
-                  }}
+                  onClick={() => setDraftFilters(p => ({ ...p, min_rating: p.min_rating === rate ? 0 : rate }))}
+                  color={draftFilters.min_rating === rate ? 'primary' : 'default'}
+                  variant={draftFilters.min_rating === rate ? 'filled' : 'outlined'}
+                  sx={{ fontWeight: 800, height: 40, px: 2, cursor: 'pointer', transition: 'all 0.2s' }}
                 />
               ))}
             </Stack>
@@ -380,15 +483,14 @@ const MarketplacePage = () => {
           <Box>
             <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 2 }}>Tiện ích & Dịch vụ</Typography>
             <FormGroup sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
-              {AMENITIES_OPTIONS.map((item) => (
+              {AMENITIES_OPTIONS.map(item => (
                 <FormControlLabel 
                   key={item}
                   control={
                     <Checkbox 
-                      size="small" 
-                      color="primary"
-                      checked={filters.amenities.includes(item)}
-                      onChange={() => handleAmenityChange(item)}
+                      size="small" color="primary"
+                      checked={draftFilters.amenities.includes(item)}
+                      onChange={() => handleDraftAmenityChange(item)}
                     />
                   } 
                   label={<Typography variant="body2" sx={{ fontWeight: 600 }}>{item}</Typography>} 
@@ -398,20 +500,19 @@ const MarketplacePage = () => {
           </Box>
         </Stack>
 
-        <Box sx={{ mt: 'auto', pt: 6, display: 'flex', gap: 2 }}>
+        {/* Actions — sticky bottom */}
+        <Box sx={{ pt: 4, display: 'flex', gap: 2, borderTop: '1px solid #E2E8F0', mt: 2 }}>
           <Button 
-            fullWidth 
-            variant="outlined" 
-            onClick={resetFilters} 
+            fullWidth variant="outlined" 
+            onClick={resetAll} 
             startIcon={<RestartAlt />}
             sx={{ borderRadius: 1.5, py: 1.5, fontWeight: 700 }}
           >
             Đặt lại
           </Button>
           <Button 
-            fullWidth 
-            variant="contained" 
-            onClick={() => setDrawerOpen(false)} 
+            fullWidth variant="contained" 
+            onClick={handleApplyFilters}
             sx={{ borderRadius: 1.5, py: 1.5, fontWeight: 900, boxShadow: '0 4px 6px -1px rgba(34,197,94,0.3)' }}
           >
             ÁP DỤNG

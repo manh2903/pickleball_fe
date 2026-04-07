@@ -2,19 +2,20 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useOutletContext } from 'react-router-dom';
 import { 
-  Box, Card, Typography, TextField, Button, 
+  Box, Typography, TextField, Button, 
   Grid, Stack, Divider, Checkbox, FormControlLabel,
   FormGroup, CircularProgress, Alert, ImageList,
   ImageListItem, IconButton, Paper, Tab, Tabs,
-  InputAdornment
+  InputAdornment, MenuItem, Autocomplete
 } from '@mui/material';
 import { 
   Save, PhotoCamera, Delete, 
   Storefront, LocationOn, Phone, 
-  Description, Info, Verified,
-  Percent
+  Verified, Percent, Info
 } from '@mui/icons-material';
 import { ownerApi } from '@/api/ownerApi';
+import { locationApi } from '@/api/locationApi';
+import { AMENITIES_LIST } from '@/constants/amenities';
 import { useSnackbar } from 'notistack';
 
 const OwnerSettings = () => {
@@ -23,17 +24,11 @@ const OwnerSettings = () => {
   const { enqueueSnackbar } = useSnackbar();
   const [tab, setTab] = useState(0);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['owner-venue-detail', venueId],
-    queryFn: () => ownerApi.getVenue(venueId), // Assuming this exists or using parent data
-    enabled: !!venueId
-  });
-
   const [formData, setFormData] = useState<any>({
     name: '',
     address: '',
-    city: '',
-    district: '',
+    province_id: '',
+    ward_id: '',
     phone: '',
     description: '',
     default_price_morning: 0,
@@ -44,111 +39,183 @@ const OwnerSettings = () => {
     images: []
   });
 
+  const { data, isLoading: isVenueLoading, error } = useQuery({
+    queryKey: ['owner-venue-detail', venueId],
+    queryFn: () => ownerApi.getVenue(venueId),
+    enabled: !!venueId
+  });
+
   useEffect(() => {
     if (data?.data) {
       setFormData({
         ...data.data,
-        amenities: data.data.amenities || []
+        amenities: Array.isArray(data.data.amenities) ? data.data.amenities : [],
+        images: Array.isArray(data.data.images) ? data.data.images : [],
+        province_id: data.data.province_id || '',
+        ward_id: data.data.ward_id || ''
       });
     }
   }, [data]);
 
+  // Locations Query
+  const { data: provinceRes, isLoading: isProvincesLoading } = useQuery({
+    queryKey: ['provinces'],
+    queryFn: () => locationApi.getProvinces(),
+  });
+
+  
+  const provinces = provinceRes?.data || [];
+  console.log("provinces", provinces)
+
+  const { data: wardRes, isLoading: isWardsLoading } = useQuery({
+    queryKey: ['wards', formData.province_id],
+    queryFn: () => locationApi.getWards(formData.province_id),
+    enabled: !!formData.province_id,
+  });
+  const wards = wardRes?.data || [];
+
+  const handleProvinceChange = (province_id: string) => {
+    setFormData((prev: any) => ({ ...prev, province_id, ward_id: '' }));
+  };
+
   const updateMutation = useMutation({
     mutationFn: (payload: any) => ownerApi.updateVenue(venueId, payload),
     onSuccess: () => {
-      enqueueSnackbar('Cập nhật thông tin cơ sở thành công!', { variant: 'success' });
+      enqueueSnackbar('Cập nhật thông tin thành công!', { variant: 'success' });
       queryClient.invalidateQueries({ queryKey: ['owner-venue-detail', venueId] });
     },
     onError: (err: any) => enqueueSnackbar(err.message || 'Lỗi cập nhật', { variant: 'error' })
   });
 
   const handleAmenityChange = (amenity: string) => {
-    setFormData((prev: any) => {
-      const newAmenities = prev.amenities.includes(amenity)
-        ? prev.amenities.filter((a: string) => a !== amenity)
-        : [...prev.amenities, amenity];
-      return { ...prev, amenities: newAmenities };
-    });
+    const current = Array.isArray(formData.amenities) ? formData.amenities : [];
+    const newAmenities = current.includes(amenity)
+      ? current.filter((a: string) => a !== amenity)
+      : [...current, amenity];
+    setFormData((prev: any) => ({ ...prev, amenities: newAmenities }));
   };
 
   const handleSave = () => {
     updateMutation.mutate(formData);
   };
 
-  if (isLoading) return <Box sx={{ py: 10, textAlign: 'center' }}><CircularProgress /></Box>;
+  if (isVenueLoading) return <Box sx={{ py: 10, textAlign: 'center' }}><CircularProgress /></Box>;
   if (error) return <Alert severity="error">Lỗi tải dữ liệu cấu hình.</Alert>;
 
-  const AMENITIES_LIST = ['Gửi xe', 'Wifi', 'Căng tin', 'Điều hòa', 'Mái che', 'Phòng tắm', 'VIP'];
-
   return (
-    <Box sx={{  mx: 'auto' }}>
-      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 4 }}>
-        <Storefront color="primary" sx={{ fontSize: '2.5rem' }} />
+    <Box sx={{ mx: 'auto' }}>
+      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 4 }}>
+        <Box sx={{ p: 1.5, bgcolor: 'primary.main', borderRadius: 3, display: 'flex' }}>
+           <Storefront sx={{ color: 'white', fontSize: '2rem' }} />
+        </Box>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 900, fontFamily: 'Times New Roman' }}>Cấu hình Cơ sở 🏢</Typography>
           <Typography variant="body2" color="text.secondary">Quản lý nội dung hiển thị và tiện ích của cụm sân.</Typography>
         </Box>
       </Stack>
 
-      <Paper sx={{ mb: 4, borderRadius: 1.5, border: '1px solid #E2E8F0', overflow: 'hidden' }}>
+      <Paper sx={{ mb: 4, borderRadius: 4, border: '1px solid #E2E8F0', overflow: 'hidden' }}>
         <Tabs 
           value={tab} 
           onChange={(_, val) => setTab(val)}
-          sx={{ bgcolor: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}
+          sx={{ bgcolor: '#F8FAFC', borderBottom: '1px solid #E2E8F0', px: 2 }}
         >
-          <Tab label="Thông tin cơ bản" sx={{ fontWeight: 800, py: 2 }} />
-          <Tab label="Tiện ích & Dịch vụ" sx={{ fontWeight: 800, py: 2 }} />
-          <Tab label="Hình ảnh (Gallery)" sx={{ fontWeight: 800, py: 2 }} />
-          <Tab label="Kinh doanh" sx={{ fontWeight: 800, py: 2 }} />
+          <Tab label="Cơ bản" sx={{ fontWeight: 800, py: 2.5 }} />
+          <Tab label="Tiện ích" sx={{ fontWeight: 800, py: 2.5 }} />
+          <Tab label="Hình ảnh" sx={{ fontWeight: 800, py: 2.5 }} />
+          <Tab label="Kinh doanh" sx={{ fontWeight: 800, py: 2.5 }} />
         </Tabs>
 
-        <Box sx={{ p: 4 }}>
+        <Box sx={{ p: { xs: 3, md: 5 } }}>
           {tab === 0 && (
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
+            <Grid container spacing={4}>
+              <Grid item xs={12} md={8}>
                 <TextField 
                   fullWidth label="Tên cơ sở" 
                   value={formData.name} 
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  InputProps={{ startAdornment: <InputAdornment position="start"><Verified color="primary" /></InputAdornment> }}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><Verified color="primary" sx={{ fontSize: 20 }} /></InputAdornment>, sx: { borderRadius: 3, fontWeight: 700 } }}
                 />
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
                 <TextField 
                   fullWidth label="Điện thoại hotline" 
                   value={formData.phone}
                   onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                  InputProps={{ startAdornment: <InputAdornment position="start"><Phone /></InputAdornment> }}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><Phone sx={{ fontSize: 20 }} /></InputAdornment>, sx: { borderRadius: 3, fontWeight: 700 } }}
                 />
               </Grid>
-              <Grid item xs={12}>
+
+              {/* LOCATIONS UPDATED TO AUTOCOMPLETE */}
+              <Grid item xs={12} md={4}>
+                <Autocomplete
+                  options={provinces}
+                  getOptionLabel={(option: any) => option.ten_tinh || ''}
+                  value={provinces.find((p: any) => p.ma_tinh === formData.province_id) || null}
+                  onChange={(_, newValue) => handleProvinceChange(newValue?.ma_tinh || '')}
+                  loading={isProvincesLoading}
+                  renderInput={(params) => (
+                    <TextField 
+                      {...params} 
+                      label="Tỉnh/Thành phố" 
+                      required
+                      InputProps={{
+                        ...params.InputProps,
+                        startAdornment: (
+                          <>
+                            <InputAdornment position="start"><LocationOn sx={{ fontSize: 20 }} /></InputAdornment>
+                            {params.InputProps.startAdornment}
+                          </>
+                        ),
+                        sx: { borderRadius: 3, fontWeight: 700 }
+                      }}
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Autocomplete
+                  options={wards}
+                  getOptionLabel={(option: any) => option.ten || ''}
+                  value={wards.find((w: any) => w.ma === formData.ward_id) || null}
+                  onChange={(_, newValue) => setFormData({...formData, ward_id: newValue?.ma || ''})}
+                  loading={isWardsLoading}
+                  disabled={!formData.province_id}
+                  renderInput={(params) => (
+                    <TextField 
+                      {...params} 
+                      label="Phường/Xã" 
+                      required
+                      InputProps={{
+                        ...params.InputProps,
+                        sx: { borderRadius: 3, fontWeight: 700 },
+                        endAdornment: (
+                          <>
+                            {isWardsLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
                 <TextField 
                   fullWidth label="Địa chỉ cụ thể" 
                   value={formData.address}
                   onChange={(e) => setFormData({...formData, address: e.target.value})}
-                  InputProps={{ startAdornment: <InputAdornment position="start"><LocationOn /></InputAdornment> }}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><LocationOn sx={{ fontSize: 20 }} /></InputAdornment>, sx: { borderRadius: 3, fontWeight: 500 } }}
                 />
               </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField 
-                  fullWidth label="Quận/Huyện" 
-                  value={formData.district}
-                  onChange={(e) => setFormData({...formData, district: e.target.value})}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField 
-                  fullWidth label="Thành phố" 
-                  value={formData.city}
-                  onChange={(e) => setFormData({...formData, city: e.target.value})}
-                />
-              </Grid>
+
               <Grid item xs={12}>
                 <TextField 
                   fullWidth multiline rows={4} label="Mô tả cơ sở" 
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  helperText="Giới thiệu về sân đấu, quy định và các thông tin cần thiết cho khách hàng."
+                  InputProps={{ sx: { borderRadius: 4 } }}
+                  helperText="Giới thiệu về sân đấu, quy định và các thông tin cần thiết."
                 />
               </Grid>
             </Grid>
@@ -157,20 +224,21 @@ const OwnerSettings = () => {
           {tab === 1 && (
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>Danh sách tiện ích</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Chọn các dịch vụ đi kèm có sẵn tại sân để khách hàng dễ dàng tìm kiếm.</Typography>
-              <FormGroup sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>Chọn dịch vụ đi kèm có sẵn tại sân.</Typography>
+              <FormGroup sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 3 }}>
                 {AMENITIES_LIST.map((item) => (
-                  <FormControlLabel 
-                    key={item}
-                    control={
-                      <Checkbox 
-                        checked={formData.amenities.includes(item)}
-                        onChange={() => handleAmenityChange(item)}
-                        color="primary"
-                      />
-                    } 
-                    label={<Typography variant="body2" sx={{ fontWeight: 600 }}>{item}</Typography>} 
-                  />
+                  <Paper key={item} variant="outlined" sx={{ p: 2, borderRadius: 2, display: 'flex', alignItems: 'center' }}>
+                    <FormControlLabel 
+                      control={
+                        <Checkbox 
+                          checked={formData.amenities?.includes(item)}
+                          onChange={() => handleAmenityChange(item)}
+                        />
+                      } 
+                      label={<Typography variant="body2" sx={{ fontWeight: 700 }}>{item}</Typography>} 
+                      sx={{ m: 0, width: '100%' }}
+                    />
+                  </Paper>
                 ))}
               </FormGroup>
             </Box>
@@ -178,29 +246,27 @@ const OwnerSettings = () => {
 
           {tab === 2 && (
             <Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
                 <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 800 }}>Bộ sưu tập ảnh khách hàng thấy</Typography>
-                  <Typography variant="caption" color="text.secondary">Ảnh sắc nét sẽ giúp thu hút người chơi nhiều hơn.</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 800 }}>Bộ sưu tập ảnh</Typography>
+                  <Typography variant="caption" color="text.secondary">Sử dụng ảnh sắc nét giúp thu hút khách hàng.</Typography>
                 </Box>
-                <Button variant="outlined" startIcon={<PhotoCamera />} sx={{ borderRadius: 1, borderWidth: 2, '&:hover': { borderWidth: 2 } }}>
-                  Tải lên ảnh 📸
-                </Button>
-              </Box>
+                <Button variant="outlined" startIcon={<PhotoCamera />} sx={{ borderRadius: 2, px: 3, py: 1 }}>Tải lên ảnh 📸</Button>
+              </Stack>
               
-              <ImageList sx={{ width: '100%', height: 'auto', borderRadius: 1 }} cols={3} gap={16}>
+              <ImageList sx={{ width: '100%', height: 'auto', borderRadius: 2 }} cols={3} gap={20}>
                 {formData.images?.map((img: string, i: number) => (
-                  <ImageListItem key={i} sx={{ border: '1px solid #E2E8F0', borderRadius: 1, overflow: 'hidden', position: 'relative' }}>
-                    <img src={img} alt={`Venue ${i}`} loading="lazy" />
-                    <IconButton sx={{ position: 'absolute', top: 4, right: 4, bgcolor: 'rgba(255,0,0,0.7)', color: 'white', '&:hover': { bgcolor: 'red' } }} size="small">
+                  <ImageListItem key={i} sx={{ border: '1px solid #E2E8F0', borderRadius: 2, overflow: 'hidden', position: 'relative', bgcolor: '#F8FAFC' }}>
+                    <img src={img} alt={`Venue ${i}`} loading="lazy" style={{ aspectRatio: '16/9', objectFit: 'cover' }} />
+                    <IconButton sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(255,59,48,0.9)', color: 'white', '&:hover': { bgcolor: '#FF3B30' } }} size="small">
                       <Delete fontSize="small" />
                     </IconButton>
                   </ImageListItem>
                 ))}
                 {(!formData.images || formData.images.length === 0) && (
-                   <Box sx={{ py: 10, textAlign: 'center', gridColumn: 'span 3', bgcolor: '#F8FAFC', borderRadius: 1, border: '1px dashed #CBD5E1' }}>
-                      <Description color="disabled" sx={{ fontSize: 40, mb: 1 }} />
-                      <Typography variant="body2" color="text.secondary">Chưa có hình ảnh nào được tải lên.</Typography>
+                   <Box sx={{ py: 12, textAlign: 'center', gridColumn: 'span 3', bgcolor: '#F8FAFC', borderRadius: 3, border: '2px dashed #E2E8F0' }}>
+                      <Info sx={{ fontSize: 48, color: '#94A3B8', mb: 1.5 }} />
+                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 700 }}>Chưa có hình ảnh nào được tải lên.</Typography>
                    </Box>
                 )}
               </ImageList>
@@ -209,18 +275,20 @@ const OwnerSettings = () => {
 
           {tab === 3 && (
             <Box>
-               <Alert severity="info" sx={{ mb: 4, borderRadius: 3 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 800 }}>
-                     💡 Tỷ lệ hoa hồng (Commission) hiện tại của bạn là <b>{data?.data?.commission_rate || 10}%</b> trên mỗi đơn đặt sân thành công.
-                  </Typography>
-               </Alert>
+               <Paper variant="outlined" sx={{ p: 3, mb: 4, borderRadius: 3, bgcolor: '#F0F9FF', border: '1px solid #BAE6FD' }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                     <Info color="primary" />
+                     <Typography variant="body2" sx={{ fontWeight: 800, color: '#0369A1' }}>
+                       Hoa hồng hệ thống: <b>{data?.data?.commission_rate || 10}%</b> trên mỗi đơn đặt thành công.
+                     </Typography>
+                  </Stack>
+               </Paper>
                
-               <Typography variant="h6" sx={{ fontWeight: 900, mb: 3 }}>Bảng giá mặc định & Phụ phí</Typography>
+               <Typography variant="h6" sx={{ fontWeight: 900, mb: 3 }}>Giá mặc định (VNĐ/giờ)</Typography>
                <Grid container spacing={3}>
                   <Grid item xs={12} sm={3}>
                     <TextField 
-                      fullWidth 
-                      label="Giá Sáng (6h-11h)" 
+                      fullWidth label="Giá Sáng" 
                       type="number"
                       value={formData.default_price_morning}
                       onChange={(e) => setFormData({...formData, default_price_morning: e.target.value})}
@@ -229,8 +297,7 @@ const OwnerSettings = () => {
                   </Grid>
                   <Grid item xs={12} sm={3}>
                     <TextField 
-                      fullWidth 
-                      label="Giá Chiều (11h-17h)" 
+                      fullWidth label="Giá Chiều" 
                       type="number"
                       value={formData.default_price_afternoon}
                       onChange={(e) => setFormData({...formData, default_price_afternoon: e.target.value})}
@@ -239,8 +306,7 @@ const OwnerSettings = () => {
                   </Grid>
                   <Grid item xs={12} sm={3}>
                     <TextField 
-                      fullWidth 
-                      label="Giá Tối (17h-22h)" 
+                      fullWidth label="Giá Tối" 
                       type="number"
                       value={formData.default_price_evening}
                       onChange={(e) => setFormData({...formData, default_price_evening: e.target.value})}
@@ -250,29 +316,24 @@ const OwnerSettings = () => {
                   <Grid item xs={12} sm={3}>
                     <TextField 
                       fullWidth 
-                      label="Phụ thu Cuối tuần" 
+                      label="Phụ phí Cuối tuần" 
                       type="number"
                       value={formData.default_price_weekend_surcharge}
                       onChange={(e) => setFormData({...formData, default_price_weekend_surcharge: e.target.value})}
                       InputProps={{ 
                          endAdornment: <InputAdornment position="end">%</InputAdornment>, 
                          sx: { borderRadius: 3 },
-                         startAdornment: <InputAdornment position="start"><Percent color="primary" /></InputAdornment>
+                         startAdornment: <InputAdornment position="start"><Percent fontSize="small" /></InputAdornment>
                       }}
-                      helperText="Cộng thêm % vào giá gốc"
+                      helperText="Cộng % vào giá gốc"
                     />
                   </Grid>
                </Grid>
-
-               <Divider sx={{ my: 4, opacity: 0.5 }} />
-               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  * Lưu ý: Giá mặc định sẽ được áp dụng cho tất cả các sân bên trong cơ sở này. Bạn có thể override (ghi đè) giá riêng cho từng sân tại trang Quản lý sân.
-               </Typography>
             </Box>
           )}
         </Box>
 
-        <Divider />
+        <Divider sx={{ opacity: 0.5 }} />
         <Box sx={{ p: 4, display: 'flex', justifyContent: 'flex-end', bgcolor: '#F8FAFC' }}>
           <Button 
             variant="contained" 
@@ -280,9 +341,9 @@ const OwnerSettings = () => {
             startIcon={<Save />}
             onClick={handleSave}
             disabled={updateMutation.isPending}
-            sx={{ px: 8, borderRadius: 1.5, fontWeight: 900, boxShadow: '0 4px 6px -1px rgba(34,197,94,0.3)' }}
+            sx={{ px: 10, py: 1.8, borderRadius: 3, fontWeight: 900, boxShadow: '0 10px 15px -3px rgba(34,197,94,0.3)' }}
           >
-            Lưu thay đổi 💾
+            LƯU THAY ĐỔI 💾
           </Button>
         </Box>
       </Paper>

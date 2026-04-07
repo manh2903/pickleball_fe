@@ -133,7 +133,9 @@ const VenueDetailPage = () => {
                 <Divider orientation="vertical" flexItem />
                 <Stack direction="row" spacing={0.5} alignItems="center">
                   <LocationOn color="primary" sx={{ fontSize: '1.1rem' }} />
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{venue.address}, {venue.district}</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {venue.address}, {venue.wardState?.ten}, {venue.provinceState?.ten_tinh}
+                  </Typography>
                 </Stack>
               </Stack>
             </Box>

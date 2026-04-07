@@ -1,29 +1,30 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, Link } from 'react-router-dom';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { 
-  Box, Container, Typography, Card, Grid, TextField, Button, 
-  Stack, MenuItem, CircularProgress, InputAdornment, Divider,
-  Paper, Avatar
+  Box, Typography, Grid, TextField, Button, 
+  Stack, MenuItem, CircularProgress, InputAdornment, 
+  Paper, Autocomplete
 } from '@mui/material';
 import { 
-  AddBusiness, ArrowBack, CloudUpload, Phone,
-  LocationOn, AccessTime, Payments, Policy,
-  Verified, Info
+  Phone, LocationOn, AccessTime, Payments, Policy,
+  Verified, Info, CloudUpload
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { ownerApi } from '@/api/ownerApi';
+import { locationApi } from '@/api/locationApi';
+import { AMENITIES_LIST } from '@/constants/amenities';
 
 const OwnerVenueAdd = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<any>({
     name: '',
     address: '',
-    city: 'Hà Nội',
-    district: '',
+    province_id: '',
+    ward_id: '',
     description: '',
     phone: '',
     open_time: '05:00',
@@ -33,7 +34,31 @@ const OwnerVenueAdd = () => {
     default_price_evening: '',
     default_price_weekend_surcharge: '10',
     cancel_policy: 'Hủy trước 24h hoàn tiền 100%. Hủy trước 12h hoàn tiền 50%.',
+    amenities: [],
   });
+
+  // Fetch provinces
+  const { data: provinceRes, isLoading: isProvincesLoading } = useQuery({
+    queryKey: ['provinces'],
+    queryFn: () => locationApi.getProvinces(),
+  });
+  const provinces = provinceRes?.data || [];
+
+  // Fetch wards based on selected province
+  const { data: wardRes, isLoading: isWardsLoading } = useQuery({
+    queryKey: ['wards', formData.province_id],
+    queryFn: () => locationApi.getWards(formData.province_id),
+    enabled: !!formData.province_id,
+  });
+  const wards = wardRes?.data || [];
+
+  const handleProvinceChange = (province_id: string) => {
+    setFormData({ 
+      ...formData, 
+      province_id, 
+      ward_id: '', 
+    });
+  };
 
   const createMutation = useMutation({
     mutationFn: (data: any) => ownerApi.createVenue(data),
@@ -50,6 +75,10 @@ const OwnerVenueAdd = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.province_id || !formData.ward_id) {
+       enqueueSnackbar('Vui lòng chọn Tỉnh/Thành phố và Phường/Xã', { variant: 'warning' });
+       return;
+    }
     const payload = {
       ...formData,
       default_price_morning: Number(formData.default_price_morning),
@@ -64,7 +93,6 @@ const OwnerVenueAdd = () => {
     <Box sx={{ py: 4 }}>
       <form onSubmit={handleSubmit}>
         <Stack spacing={4}>
-          {/* General Information Section */}
           <Paper variant="outlined" sx={{ p: 4, borderRadius: 4, border: '1px solid #F1F5F9' }}>
             <Stack direction="row" spacing={1.5} alignItems="center" mb={4}>
                <Box sx={{ p: 1, bgcolor: '#EEF2FF', borderRadius: 2 }}>
@@ -102,29 +130,60 @@ const OwnerVenueAdd = () => {
                   }}
                 />
               </Grid>
+
+              {/* LOCATION SELECTION - AUTOCOMPLETE */}
               <Grid item xs={12} md={4}>
-                <TextField 
-                  select 
-                  label="Tỉnh/Thành phố" 
-                  fullWidth 
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  InputProps={{ sx: { borderRadius: 3 } }}
-                >
-                  <MenuItem value="Hà Nội">Hà Nội</MenuItem>
-                  <MenuItem value="Hồ Chí Minh">Hồ Chí Minh</MenuItem>
-                  <MenuItem value="Đà Nẵng">Đà Nẵng</MenuItem>
-                </TextField>
+                <Autocomplete
+                  options={provinces}
+                  getOptionLabel={(option: any) => option.ten_tinh || ''}
+                  value={provinces.find((p: any) => p.ma_tinh === formData.province_id) || null}
+                  onChange={(_, newValue) => handleProvinceChange(newValue?.ma_tinh || '')}
+                  loading={isProvincesLoading}
+                  renderInput={(params) => (
+                    <TextField 
+                      {...params} 
+                      label="Tỉnh/Thành phố" 
+                      required
+                      InputProps={{
+                        ...params.InputProps,
+                        sx: { borderRadius: 3 },
+                        endAdornment: (
+                          <>
+                            {isProvincesLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                />
               </Grid>
               <Grid item xs={12} md={4}>
-                <TextField 
-                  label="Quận/Huyện" 
-                  required 
-                  fullWidth 
-                  placeholder="VD: Cầu Giấy"
-                  value={formData.district}
-                  onChange={(e) => setFormData({ ...formData, district: e.target.value })}
-                  InputProps={{ sx: { borderRadius: 3 } }}
+                <Autocomplete
+                  options={wards}
+                  getOptionLabel={(option: any) => option.ten || ''}
+                  value={wards.find((w: any) => w.ma === formData.ward_id) || null}
+                  onChange={(_, newValue) => setFormData({ ...formData, ward_id: newValue?.ma || '' })}
+                  loading={isWardsLoading}
+                  disabled={!formData.province_id}
+                  renderInput={(params) => (
+                    <TextField 
+                      {...params} 
+                      label="Phường/Xã" 
+                      required
+                      InputProps={{
+                        ...params.InputProps,
+                        sx: { borderRadius: 3 },
+                        endAdornment: (
+                          <>
+                            {isWardsLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                      helperText={!formData.province_id ? "Chọn Tỉnh/Thành phố trước" : ""}
+                    />
+                  )}
                 />
               </Grid>
               <Grid item xs={12} md={4}>
@@ -141,6 +200,7 @@ const OwnerVenueAdd = () => {
                   }}
                 />
               </Grid>
+
               <Grid item xs={12}>
                 <TextField 
                   label="Mô tả cơ sở" 
@@ -156,7 +216,6 @@ const OwnerVenueAdd = () => {
             </Grid>
           </Paper>
 
-          {/* Pricing & Policy Section */}
           <Paper variant="outlined" sx={{ p: 4, borderRadius: 4, border: '1px solid #F1F5F9' }}>
              <Stack direction="row" spacing={1.5} alignItems="center" mb={4}>
                 <Box sx={{ p: 1, bgcolor: '#ECFDF5', borderRadius: 2 }}>
@@ -166,7 +225,6 @@ const OwnerVenueAdd = () => {
              </Stack>
 
              <Grid container spacing={4}>
-                {/* Prices */}
                 <Grid item xs={12} sm={3}>
                   <TextField 
                     label="Giá Sáng (6h-11h)" 
@@ -225,7 +283,6 @@ const OwnerVenueAdd = () => {
                   />
                 </Grid>
 
-                {/* Times */}
                 <Grid item xs={12} sm={6}>
                   <TextField 
                     label="Mở cửa" 
@@ -270,9 +327,43 @@ const OwnerVenueAdd = () => {
              </Grid>
           </Paper>
 
-          {/* Submission Section */}
+          <Paper variant="outlined" sx={{ p: 4, borderRadius: 4, border: '1px solid #F1F5F9' }}>
+             <Stack direction="row" spacing={1.5} alignItems="center" mb={4}>
+                <Box sx={{ p: 1, bgcolor: '#FEF3C7', borderRadius: 2 }}>
+                   <Info sx={{ color: '#D97706' }} />
+                </Box>
+                <Typography variant="h6" sx={{ fontWeight: 900 }}>Tiện ích mở rộng</Typography>
+             </Stack>
+             <Grid container spacing={2}>
+                {AMENITIES_LIST.map((item) => (
+                  <Grid item xs={6} sm={4} md={3} key={item}>
+                    <Box 
+                      onClick={() => {
+                        const current = formData.amenities || [];
+                        const newAmenities = current.includes(item)
+                          ? current.filter((a: string) => a !== item)
+                          : [...current, item];
+                        setFormData({ ...formData, amenities: newAmenities });
+                      }}
+                      sx={{ 
+                        p: 2, borderRadius: 3, cursor: 'pointer', border: '2px solid',
+                        borderColor: (formData.amenities || []).includes(item) ? 'primary.main' : '#F1F5F9',
+                        bgcolor: (formData.amenities || []).includes(item) ? 'rgba(34,197,94,0.05)' : 'white',
+                        transition: '0.2s',
+                        textAlign: 'center',
+                        fontWeight: (formData.amenities || []).includes(item) ? 800 : 500,
+                        '&:hover': { borderColor: 'primary.light' }
+                      }}
+                    >
+                      {item}
+                    </Box>
+                  </Grid>
+                ))}
+             </Grid>
+          </Paper>
+
           <Box sx={{ p: 6, bgcolor: '#F8FAFC', borderRadius: 4, border: '1px dashed #CBD5E1', textAlign: 'center' }}>
-             <Typography variant="body2" color="text.secondary" sx={{ mb: 4, fontWeight: 600 }}>
+             <Typography variant="body1" color="text.secondary" sx={{ mb: 4, fontWeight: 600 }}>
                📝 Bằng việc gửi yêu cầu này, bạn xác nhận thông tin cơ sở là chính xác và tuân thủ các quy định vận hành của hệ thống.
              </Typography>
              <Button 
