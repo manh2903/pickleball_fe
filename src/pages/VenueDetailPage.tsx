@@ -41,22 +41,22 @@ const AMENITY_ICONS: any = {
 };
 
 const VenueDetailPage = () => {
-  const { id } = useParams<{ id: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['venue', id],
-    queryFn: () => venueApi.getVenueById(id!),
-    enabled: !!id,
+    queryKey: ['venue', slug],
+    queryFn: () => venueApi.getVenueById(slug!),
+    enabled: !!slug,
   });
 
   const venue = data?.data;
 
   const { data: reviewsRes, isLoading: isReviewsLoading } = useQuery({
-    queryKey: ['venue-reviews', id],
-    queryFn: () => reviewApi.getVenueReviews(id!),
-    enabled: !!id,
+    queryKey: ['venue-reviews', slug],
+    queryFn: () => reviewApi.getVenueReviews(slug!),
+    enabled: !!slug,
   });
 
   const reviews = reviewsRes?.data?.reviews || [];
@@ -184,7 +184,7 @@ const VenueDetailPage = () => {
                       <Typography variant="h6" sx={{ fontWeight: 900, mb: 2 }}>Trang thiết bị & Tiện ích</Typography>
                       <Grid container spacing={2}>
                         {venue.amenities?.length > 0 ? (
-                          venue.amenities.map((item: string) => (
+                          venue.amenities?.map((item: string) => (
                             <Grid item xs={6} sm={4} key={item}>
                               <Box sx={{ 
                                 display: 'flex', alignItems: 'center', gap: 2, p: 2, 

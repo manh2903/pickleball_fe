@@ -17,7 +17,14 @@ import { venueApi } from '@/api/venueApi';
 
 const AMENITIES_OPTIONS = ['Gửi xe', 'Wifi', 'Căng tin', 'Điều hòa', 'Mái che', 'Phòng tắm', 'VIP'];
 
+const parseArr = (val: any): string[] => {
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string') { try { return JSON.parse(val); } catch { return []; } }
+  return [];
+};
+
 const VenueCard = ({ venue }: { venue: any }) => {
+  const amenities = parseArr(venue.amenities);
   return (
     <Card sx={{ 
       height: '100%', 
@@ -80,7 +87,7 @@ const VenueCard = ({ venue }: { venue: any }) => {
         </Stack>
 
         <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: 'wrap', gap: 0.5 }}>
-          {venue.amenities?.slice(0, 3).map((item: string) => (
+          {amenities.slice(0, 3).map((item: string) => (
             <Chip 
               key={item} 
               label={item} 
@@ -103,7 +110,7 @@ const VenueCard = ({ venue }: { venue: any }) => {
           </Box>
           <Button 
             component={Link} 
-            to={`/venues/${venue.id}`} 
+            to={`/venues/${venue.slug}`} 
             variant="contained" 
             endIcon={<ChevronRight />}
             sx={{ 

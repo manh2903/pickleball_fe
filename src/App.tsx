@@ -140,7 +140,7 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/register-owner" element={<RegisterOwnerPage />} />
           <Route path="/marketplace" element={<MarketplacePage />} />
-          <Route path="/venues/:id" element={<VenueDetailPage />} />
+          <Route path="/venues/:slug" element={<VenueDetailPage />} />
           <Route path="/booking/:venueId" element={<BookingPage />} />
           <Route path="/bookings/:id" element={<BookingSuccessPage />} />
           <Route path="/my-bookings" element={<MyBookingsPage />} />
