@@ -9,7 +9,7 @@ import {
 } from '@mui/material';
 import { 
   ArrowBack, CheckCircle, Payments, AccountBalanceWallet,
-  CalendarMonth, Info
+  CalendarMonth, Info, Person, Phone, Email
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import dayjs, { Dayjs } from 'dayjs';
@@ -27,7 +27,7 @@ const BookingPage = () => {
   const { venueId } = useParams<{ venueId: string }>();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const queryClient = useQueryClient();
 
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
@@ -36,6 +36,24 @@ const BookingPage = () => {
   const [notes, setNotes] = useState('');
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'vnpay' | 'cash'>('vnpay');
+
+  // Customer info state
+  const [customerInfo, setCustomerInfo] = useState({
+    name: '',
+    phone: '',
+    email: ''
+  });
+
+  // Pre-fill if logged in
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      setCustomerInfo({
+        name: user.name || '',
+        phone: user.phone || '',
+        email: user.email || ''
+      });
+    }
+  }, [isAuthenticated, user]);
 
   // 1. Fetch Venue
   const { data: venueRes, isLoading: isLoadingVenue } = useQuery({
@@ -102,7 +120,7 @@ const BookingPage = () => {
   }, [selectedSlots]);
 
   const createMutation = useMutation({
-    mutationFn: bookingApi.createBooking,
+    mutationFn: (payload: any) => bookingApi.createBooking(payload),
     onSuccess: (res: any) => {
       enqueueSnackbar('Đặt sân thành công! 🎉', { variant: 'success' });
       navigate(`/bookings/${res.data.booking_code}`);
@@ -118,15 +136,18 @@ const BookingPage = () => {
   };
 
   const handleBooking = () => {
-    if (!isAuthenticated) {
-      enqueueSnackbar('Vui lòng đăng nhập để đặt sân', { variant: 'info', anchorOrigin: { vertical: 'top', horizontal: 'center' } });
-      navigate('/login');
+    if (!customerInfo.name || !customerInfo.phone || !customerInfo.email) {
+      enqueueSnackbar('Vui lòng điền đầy đủ thông tin khách hàng', { variant: 'error' });
       return;
     }
+
     createMutation.mutate({ 
       slot_ids: selectedSlotIds, 
       notes, 
-      payment_method: paymentMethod 
+      payment_method: paymentMethod,
+      customer_name: customerInfo.name,
+      customer_phone: customerInfo.phone,
+      customer_email: customerInfo.email
     });
   };
 
@@ -229,7 +250,7 @@ const BookingPage = () => {
                     display: 'flex', alignItems: 'center', px: 2,
                     borderRight: '1px solid #94A3B8', position: 'sticky', left: 0, zIndex: 5
                   }}>
-                    <Typography variant="caption" sx={{ fontWeight: 900 }}>{court.name}</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 900 }}>{court.name} <Typography variant="caption" sx={{ fontSize: 8, color: 'text.secondary', display: 'block' }}>{court.type}</Typography></Typography>
                   </Box>
                   
                   {/* Slots Cells */}
@@ -299,53 +320,48 @@ const BookingPage = () => {
                   variant="contained" 
                   size="large" 
                   onClick={() => setIsConfirmOpen(true)}
-                  sx={{ py: 1.5, px: 4, borderRadius: 1.5, fontWeight: 900, boxShadow: '0 4px 14px 0 rgba(14, 165, 233, 0.39)' }}
+                  sx={{ py: 1.5, px: 4, borderRadius: 1.5, fontWeight: 900 }}
                 >
-                  TIẾP TỤC
+                   ĐẶT LỊCH NGAY
                 </Button>
              </Stack>
           </Paper>
         )}
 
-        {/* Zoom Slider */}
-        <Box sx={{ position: 'fixed', right: 20, top: '50%', transform: 'translateY(-50%)', zIndex: 100, height: 200, bgcolor: 'white', py: 2, px: 1, borderRadius: 5, boxShadow: 2, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-           <Typography variant="caption" sx={{ fontWeight: 900, mb: 1 }}>SIZE</Typography>
-           <Slider
-            orientation="vertical"
-            value={zoom}
-            onChange={(_: Event, val: number | number[]) => setZoom(val as number)}
-            min={80}
-            max={200}
-            size="small"
-          />
+        <Box sx={{ position: 'fixed', bottom: 40, right: 40, zIndex: 100 }}>
+           <Paper sx={{ p: 1, borderRadius: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="caption" sx={{ fontWeight: 700, ml: 1 }}>Thu phóng:</Typography>
+              <Slider 
+                value={zoom} min={50} max={200} step={10} 
+                onChange={(_, v) => setZoom(v as number)}
+                sx={{ width: 100, mx: 1 }} 
+              />
+           </Paper>
         </Box>
 
-        {/* Booking Confirm Dialog */}
-        <Dialog open={isConfirmOpen} onClose={() => setIsConfirmOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 1.5 } }}>
-          <DialogTitle sx={{ fontWeight: 900, fontFamily: 'Times New Roman', py: 3, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-             <CalendarMonth color="primary" /> Bước cuối: Xác nhận đặt sân
+        {/* Confirmation Dialog */}
+        <Dialog 
+          open={isConfirmOpen} onClose={() => setIsConfirmOpen(false)} 
+          maxWidth="sm" fullWidth
+          PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
+        >
+          <DialogTitle sx={{ bgcolor: '#0EA5E9', color: 'white', py: 3 }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+               <Payments />
+               <Typography variant="h6" sx={{ fontWeight: 900 }}>XÁC NHẬN ĐẶT LỊCH</Typography>
+            </Stack>
           </DialogTitle>
-          <DialogContent dividers>
-            <Stack spacing={3} sx={{ py: 2 }}>
-              <Box sx={{ bgcolor: '#F0F9FF', p: 2.5, borderRadius: 1.5, border: '1px solid #BAE6FD' }}>
-                <Typography variant="caption" sx={{ color: 'primary.dark', fontWeight: 800, textTransform: 'uppercase' }}>Danh sách khung giờ</Typography>
-                <Stack spacing={1} sx={{ mt: 1.5 }}>
+          <DialogContent sx={{ p: 4 }}>
+            <Stack spacing={3} sx={{ mt: 2 }}>
+               <Box sx={{ p: 2.5, bgcolor: '#F0F9FF', borderRadius: 2.5, border: '1px solid #BAE6FD' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 1, color: '#0369A1', display: 'flex', alignItems: 'center', gap: 1 }}>
+                   <CalendarMonth fontSize="small" /> CHI TIẾT LỊCH CHƠI
+                </Typography>
+                <Stack spacing={1}>
                   {selectedSlots.map((s: any) => (
-                    <Box key={s.id} sx={{ 
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      p: 1, bgcolor: 'white', borderRadius: 1, border: '1px solid #E2E8F0'
-                    }}>
-                      <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 800, color: 'primary.main' }}>
-                          {s.court?.name || 'Sân ' + s.court_id}
-                        </Typography>
-                        <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
-                          {s.start_time.slice(0, 5)} - {s.end_time.slice(0, 5)}
-                        </Typography>
-                      </Box>
-                      <Typography variant="body2" sx={{ fontWeight: 900 }}>
-                        {new Intl.NumberFormat('vi-VN').format(s.price)}đ
-                      </Typography>
+                    <Box key={s.id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>{s.court?.name} ({s.start_time.slice(0,5)} - {s.end_time.slice(0,5)})</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 800 }}>{new Intl.NumberFormat('vi-VN').format(s.price)}đ</Typography>
                     </Box>
                   ))}
                   <Divider sx={{ my: 1, borderColor: '#BAE6FD', borderStyle: 'dashed' }} />
@@ -356,10 +372,38 @@ const BookingPage = () => {
                     </Typography>
                   </Box>
                 </Stack>
-              </Box>
+               </Box>
 
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5 }}>Chọn phương thức thanh toán:</Typography>
+               <Box>
+                 <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                   <Person fontSize="small" color="primary" /> THÔNG TIN NGƯỜI ĐẶT <Typography variant="caption" color="error" sx={{ fontWeight: 900 }}>(BẮT BUỘC)</Typography>
+                 </Typography>
+                 <Stack spacing={2}>
+                    <TextField 
+                      label="Họ và tên" placeholder="Nhập tên người chơi..."
+                      fullWidth value={customerInfo.name}
+                      onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
+                      InputProps={{ startAdornment: <Person sx={{ color: 'action.active', mr: 1 }} />, sx: { borderRadius: 1.5 } }}
+                    />
+                    <Stack direction="row" spacing={2}>
+                      <TextField 
+                        label="Số điện thoại" placeholder="0xxx..."
+                        fullWidth value={customerInfo.phone}
+                        onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
+                        InputProps={{ startAdornment: <Phone sx={{ color: 'action.active', mr: 1 }} />, sx: { borderRadius: 1.5 } }}
+                      />
+                      <TextField 
+                        label="Email" placeholder="example@gmail.com"
+                        fullWidth value={customerInfo.email}
+                        onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })}
+                        InputProps={{ startAdornment: <Email sx={{ color: 'action.active', mr: 1 }} />, sx: { borderRadius: 1.5 } }}
+                      />
+                    </Stack>
+                 </Stack>
+               </Box>
+
+               <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5 }}>CHỌN PHƯƠNG THỨC THANH TOÁN:</Typography>
                 <RadioGroup 
                   value={paymentMethod} 
                   onChange={(e) => setPaymentMethod(e.target.value as any)}
@@ -399,20 +443,20 @@ const BookingPage = () => {
                       } />
                    </Paper>
                 </RadioGroup>
-              </Box>
+               </Box>
 
-              <TextField 
+               <TextField 
                 label="Ghi chú thêm" 
                 fullWidth multiline rows={2} 
                 value={notes}
                 placeholder="Ví dụ: Cần mượn thêm vợt, nước..."
                 onChange={(e) => setNotes(e.target.value)}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
-              />
+               />
             </Stack>
           </DialogContent>
           <DialogActions sx={{ p: 3, gap: 1 }}>
-            <Button onClick={() => setIsConfirmOpen(false)} sx={{ fontWeight: 700 }}>Quay lại</Button>
+            <Button onClick={() => setIsConfirmOpen(false)} sx={{ fontWeight: 700 }}>QUAY LẠI</Button>
             <Button 
               variant="contained" 
               onClick={handleBooking}

@@ -9,7 +9,10 @@ export const bookingApi = {
     slot_ids?: number[]; 
     coupon_code?: string; 
     notes?: string;
-    payment_method?: 'vnpay' | 'cash'
+    payment_method?: 'vnpay' | 'cash';
+    customer_name: string;
+    customer_phone: string;
+    customer_email: string;
   }) => 
     api.post('/bookings', data),
   
