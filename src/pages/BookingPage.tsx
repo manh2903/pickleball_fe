@@ -81,8 +81,11 @@ const BookingPage = () => {
       });
     }
 
-    socketService.onSlotsUpdated((data) => {
+    socketService.onSlotsUpdated((data: { ids: number[], status: string, userId?: number }) => {
       console.log('📢 Real-time update:', data);
+      
+      // Ignore own update
+      if (data.userId === user?.id) return;
       
       // Notify if conflict with selected slots
       const conflict = selectedSlotIds.filter(id => data.ids.includes(id));
@@ -98,7 +101,7 @@ const BookingPage = () => {
     return () => {
       socketService.disconnect();
     };
-  }, [venue?.courts, selectedSlotIds, venueSlug, queryClient, enqueueSnackbar]);
+  }, [venue?.courts, selectedSlotIds, venueSlug, queryClient, enqueueSnackbar, user?.id]);
 
   // Group slots by court and start_time
   const gridData = useMemo(() => {
@@ -123,7 +126,12 @@ const BookingPage = () => {
     mutationFn: (payload: any) => bookingApi.createBooking(payload),
     onSuccess: (res: any) => {
       enqueueSnackbar('Đặt sân thành công! 🎉', { variant: 'success' });
-      navigate(`/bookings/${res.data.booking_code}`);
+      
+      if (res.paymentUrl) {
+        window.location.href = res.paymentUrl;
+      } else {
+        navigate(`/bookings/${res.data.booking_code}`);
+      }
     },
     onError: (err: any) => enqueueSnackbar(err.message || 'Đặt sân thất bại', { variant: 'error' })
   });

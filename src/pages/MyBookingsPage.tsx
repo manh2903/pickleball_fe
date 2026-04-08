@@ -15,6 +15,7 @@ import {
 import { Link } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { bookingApi } from '@/api/bookingApi';
+import { paymentApi } from '@/api/paymentApi';
 
 const StatusChip = ({ status }: { status: string }) => {
   const configs: Record<string, { label: string, color: any, icon: any }> = {
@@ -75,6 +76,21 @@ const PaymentInfo = ({ status, method, type }: { status: string, method?: string
 
 const BookingItem = ({ booking, onCancel }: { booking: any, onCancel: (id: number) => void }) => {
   const isUpcoming = booking.status === 'confirmed' || booking.status === 'pending';
+  const isUnpaid = booking.payment_status !== 'paid';
+  const { enqueueSnackbar } = useSnackbar();
+  
+  const handlePayment = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const res = await paymentApi.createVNPayUrl(booking.booking_code);
+      if (res.data) {
+        window.location.href = res.data;
+      }
+    } catch (err: any) {
+      enqueueSnackbar(err.message || 'Lỗi khi tạo link thanh toán', { variant: 'error' });
+    }
+  };
   
   return (
     <Card sx={{ 
@@ -179,18 +195,32 @@ const BookingItem = ({ booking, onCancel }: { booking: any, onCancel: (id: numbe
                   type={booking.booking_type} 
                 />
                 
-                {isUpcoming && (
-                  <Button 
-                    variant="text" 
-                    color="error" 
-                    size="small" 
-                    onClick={() => onCancel(booking.id)}
-                    startIcon={<CancelOutlined />}
-                    sx={{ fontWeight: 700, borderRadius: 1 }}
-                  >
-                    Hủy đặt sân
-                  </Button>
-                )}
+                <Stack direction="row" spacing={1}>
+                  {isUpcoming && isUnpaid && (
+                    <Button 
+                      variant="contained" 
+                      color="error" 
+                      size="small" 
+                      onClick={handlePayment}
+                      startIcon={<Payments />}
+                      sx={{ fontWeight: 900, borderRadius: 1 }}
+                    >
+                      Thanh toán ngay
+                    </Button>
+                  )}
+                  {isUpcoming && (
+                    <Button 
+                      variant="text" 
+                      color="error" 
+                      size="small" 
+                      onClick={() => onCancel(booking.id)}
+                      startIcon={<CancelOutlined />}
+                      sx={{ fontWeight: 700, borderRadius: 1 }}
+                    >
+                      Hủy đặt sân
+                    </Button>
+                  )}
+                </Stack>
              </Stack>
           </Grid>
 

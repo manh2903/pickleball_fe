@@ -99,7 +99,7 @@ const BookingSuccessPage = () => {
                 boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
                 border: '1px solid #E2E8F0'
               }}>
-                <QRCodeSVG value={`PICKLEBALL-BOOKING-${booking.id}`} size={160} />
+                <QRCodeSVG value={`PB-BOOKING-${booking.booking_code}`} size={160} />
               </Paper>
               
               <Typography variant="caption" sx={{ display: 'block', mt: 2, color: 'text.secondary', fontWeight: 600 }}>
