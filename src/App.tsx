@@ -30,6 +30,7 @@ import OwnerIncidents from './pages/OwnerIncidents';
 import OwnerWallet from '@/pages/OwnerWallet';
 import OwnerSettings from './pages/OwnerSettings';
 import OwnerReports from './pages/OwnerReports';
+import OwnerReviewsPage from './pages/owner/OwnerReviewsPage';
 
 // Admin Sidebar & Dashboards
 import AdminLayout from './layouts/AdminLayout';
@@ -83,6 +84,7 @@ function App() {
             <Route path="wallet" element={<OwnerWallet />} />
             <Route path="settings" element={<OwnerSettings />} />
             <Route path="reports" element={<OwnerReports />} />
+            <Route path="reviews/:venueId" element={<OwnerReviewsPage />} />
           </Route>
 
           {/* Admin Dashboard Routes */}

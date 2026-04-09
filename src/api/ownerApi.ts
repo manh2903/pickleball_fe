@@ -30,4 +30,7 @@ export const ownerApi = {
   
   // Check-in (for Staff/Owner)
   checkIn: (bookingCode: string) => api.post('/staff/bookings/checkin', { booking_code: bookingCode }),
+
+  // Reviews
+  getVenueReviews: (venueId: number | string, params?: any) => api.get(`/owner/venues/${venueId}/reviews`, { params }),
 };
