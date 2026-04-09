@@ -17,12 +17,14 @@ import { ownerApi } from '@/api/ownerApi';
 import { locationApi } from '@/api/locationApi';
 import { AMENITIES_LIST } from '@/constants/amenities';
 import { useSnackbar } from 'notistack';
+import { getImageUrl } from '@/utils/imageUtils';
 
 const OwnerSettings = () => {
   const { venueId }: any = useOutletContext();
   const queryClient = useQueryClient();
   const { enqueueSnackbar } = useSnackbar();
   const [tab, setTab] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
 
   const [formData, setFormData] = useState<any>({
     name: '',
@@ -93,6 +95,42 @@ const OwnerSettings = () => {
       ? current.filter((a: string) => a !== amenity)
       : [...current, amenity];
     setFormData((prev: any) => ({ ...prev, amenities: newAmenities }));
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploading(true);
+      const res: any = await ownerApi.uploadVenueImage(venueId, file);
+      const imageUrl = res.data.url;
+      
+      setFormData((prev: any) => ({
+        ...prev,
+        images: [...(prev.images || []), imageUrl]
+      }));
+      enqueueSnackbar('Tải ảnh lên thành công!', { variant: 'success' });
+    } catch (err: any) {
+      enqueueSnackbar(err.message || 'Lỗi tải ảnh', { variant: 'error' });
+    } finally {
+      setIsUploading(false);
+      e.target.value = ''; // Reset input
+    }
+  };
+
+  const handleRemoveImage = async (index: number) => {
+    const imageUrl = formData.images[index];
+    try {
+      await ownerApi.deleteVenueImage(venueId, imageUrl);
+      setFormData((prev: any) => ({
+        ...prev,
+        images: prev.images.filter((_: any, i: number) => i !== index)
+      }));
+      enqueueSnackbar('Xóa ảnh thành công!', { variant: 'success' });
+    } catch (err: any) {
+      enqueueSnackbar(err.message || 'Lỗi khi xóa ảnh', { variant: 'error' });
+    }
   };
 
   const handleSave = () => {
@@ -251,14 +289,41 @@ const OwnerSettings = () => {
                   <Typography variant="h6" sx={{ fontWeight: 800 }}>Bộ sưu tập ảnh</Typography>
                   <Typography variant="caption" color="text.secondary">Sử dụng ảnh sắc nét giúp thu hút khách hàng.</Typography>
                 </Box>
-                <Button variant="outlined" startIcon={<PhotoCamera />} sx={{ borderRadius: 2, px: 3, py: 1 }}>Tải lên ảnh 📸</Button>
+                <input
+                  type="file"
+                  id="venue-image-upload"
+                  hidden
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  disabled={isUploading}
+                />
+                <label htmlFor="venue-image-upload">
+                  <Button 
+                    variant="outlined" 
+                    component="span"
+                    startIcon={isUploading ? <CircularProgress size={20} /> : <PhotoCamera />} 
+                    disabled={isUploading}
+                    sx={{ borderRadius: 2, px: 3, py: 1 }}
+                  >
+                    {isUploading ? 'Đang tải...' : 'Tải lên ảnh 📸'}
+                  </Button>
+                </label>
               </Stack>
               
               <ImageList sx={{ width: '100%', height: 'auto', borderRadius: 2 }} cols={3} gap={20}>
                 {formData.images?.map((img: string, i: number) => (
                   <ImageListItem key={i} sx={{ border: '1px solid #E2E8F0', borderRadius: 2, overflow: 'hidden', position: 'relative', bgcolor: '#F8FAFC' }}>
-                    <img src={img} alt={`Venue ${i}`} loading="lazy" style={{ aspectRatio: '16/9', objectFit: 'cover' }} />
-                    <IconButton sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(255,59,48,0.9)', color: 'white', '&:hover': { bgcolor: '#FF3B30' } }} size="small">
+                    <img 
+                      src={getImageUrl(img)} 
+                      alt={`Venue ${i}`} 
+                      loading="lazy" 
+                      style={{ aspectRatio: '16/9', objectFit: 'cover' }} 
+                    />
+                    <IconButton 
+                      onClick={() => handleRemoveImage(i)}
+                      sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(255,59,48,0.9)', color: 'white', '&:hover': { bgcolor: '#FF3B30' } }} 
+                      size="small"
+                    >
                       <Delete fontSize="small" />
                     </IconButton>
                   </ImageListItem>

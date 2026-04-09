@@ -33,4 +33,17 @@ export const ownerApi = {
 
   // Reviews
   getVenueReviews: (venueId: number | string, params?: any) => api.get(`/owner/venues/${venueId}/reviews`, { params }),
+
+  // Image Upload
+  uploadVenueImage: (venueId: number | string, file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('venue_id', String(venueId));
+    return api.post('/owner/venues/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+
+  deleteVenueImage: (venueId: number | string, imageUrl: string) => 
+    api.delete('/owner/venues/image', { data: { venue_id: venueId, imageUrl } }),
 };

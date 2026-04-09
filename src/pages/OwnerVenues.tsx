@@ -116,7 +116,7 @@ const OwnerVenues = () => {
                   </TableCell>
                   <TableCell>
                     <Chip 
-                      label={`${venue.court_count || 0} Sân`} 
+                      label={`${venue.courts.length || 0} Sân`} 
                       size="small" 
                       sx={{ fontWeight: 800, bgcolor: '#F0F9FF', color: '#0EA5E9', border: '1px solid #BAE6FD' }} 
                     />
