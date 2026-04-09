@@ -13,7 +13,7 @@ import {
   CheckCircle,
 } from "@mui/icons-material";
 import { keyframes } from "@mui/system";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 /* ── Animations ─────────────────────────────────────────── */
 const float = keyframes`
@@ -58,6 +58,54 @@ const FadeUp = ({ delay = 0, children, sx = {} }: { delay?: number; children: Re
   <Box sx={{ opacity: 0, animation: `${reveal} .75s ease-out ${delay}s forwards`, ...sx }}>{children}</Box>
 );
 
+// Counter component for stats
+const Counter = ({ target, duration = 2000 }: { target: string; duration?: number }) => {
+  const [count, setCount] = useState(0);
+  
+  // Extract only the primary number to count (handle cases like "500+" or "34/34")
+  const match = target.match(/^(\d+(?:\.\d+)?)/);
+  const numericTarget = match ? parseFloat(match[1]) : 0;
+  const suffix = target.replace(/^(\d+(?:\.\d+)?)/, "");
+
+  useEffect(() => {
+    let start = 0;
+    const end = numericTarget;
+    if (isNaN(end) || start === end) {
+      if (!isNaN(end)) setCount(end);
+      return;
+    }
+
+    const totalFrames = 60;
+    const increment = end / totalFrames;
+    let frame = 0;
+
+    const timer = setInterval(() => {
+      frame++;
+      const nextCount = increment * frame;
+      if (frame >= totalFrames) {
+        setCount(end);
+        clearInterval(timer);
+      } else {
+        setCount(nextCount);
+      }
+    }, duration / totalFrames);
+
+    return () => clearInterval(timer);
+  }, [numericTarget, duration]);
+
+  // Handle decimal formatting (for items like 4.9)
+  const displayValue = Number.isInteger(numericTarget) 
+    ? Math.floor(count).toLocaleString() 
+    : count.toFixed(1);
+
+  return (
+    <>
+      {displayValue}
+      {suffix}
+    </>
+  );
+};
+
 /* ── Data ────────────────────────────────────────────────── */
 const features = [
   {
@@ -86,11 +134,11 @@ const features = [
   },
 ];
 
-const stats = [
+const statsData = [
   { value: "500+", label: "Sân đấu" },
-  { value: "10k+", label: "Người chơi" },
+  { value: "10000+", label: "Người chơi" },
   { value: "4.9★", label: "Đánh giá" },
-  { value: "63/63", label: "Tỉnh thành" },
+  { value: "34/34", label: "Tỉnh thành" },
 ];
 
 const ctaItems = [
@@ -102,7 +150,7 @@ const ctaItems = [
 
 /* ═══════════════════════════════════════════════════════════
    COMPONENT
-═══════════════════════════════════════════════════════════ */
+ ═══════════════════════════════════════════════════════════ */
 const HomePage = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -156,7 +204,6 @@ const HomePage = () => {
             <Grid item xs={12} md={7}>
               <FadeUp delay={0}>
                 <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3 }}>
-                  {/* live dot */}
                   <Box sx={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: 10, height: 10 }}>
                     <Box
                       sx={{
@@ -283,20 +330,20 @@ const HomePage = () => {
                     width: "fit-content",
                   }}
                 >
-                  {stats.map((s, i) => (
+                  {statsData.map((s, i) => (
                     <Box
                       key={i}
                       sx={{
                         px: { xs: 2, sm: 3 },
                         py: 2,
                         textAlign: "center",
-                        borderRight: i < stats.length - 1 ? "1px solid #E2E8F0" : "none",
+                        borderRight: i < statsData.length - 1 ? "1px solid #E2E8F0" : "none",
                       }}
                     >
                       <Typography
                         sx={{ fontWeight: 900, fontSize: "1.4rem", color: "#0F172A", lineHeight: 1, fontFamily: '"Sora",system-ui,sans-serif' }}
                       >
-                        {s.value}
+                        <Counter target={s.value} />
                       </Typography>
                       <Typography
                         sx={{ fontSize: ".68rem", color: "#64748B", fontWeight: 600, mt: 0.4, textTransform: "uppercase", letterSpacing: 0.6 }}
@@ -312,7 +359,6 @@ const HomePage = () => {
             {/* Right visual */}
             <Grid item xs={12} md={5} sx={{ display: { xs: "none", md: "flex" }, justifyContent: "center", alignItems: "center" }}>
               <Box sx={{ position: "relative", width: "100%", maxWidth: 640, height: 520 }}>
-                {/* Ảnh 1 – hình chữ nhật, nền */}
                 <Box
                   component="img"
                   src="https://cdn.shopvnb.com/uploads/images/bai_viet/tong-hop-dan-pickleball-hot-girl-8-1748226218.webp"
@@ -321,7 +367,7 @@ const HomePage = () => {
                     position: "absolute",
                     top: 0,
                     left: 0,
-                    width: "100%",
+                    width: "150%",
                     height: "90%",
                     objectFit: "cover",
                     borderRadius: 6,
@@ -331,8 +377,6 @@ const HomePage = () => {
                     animation: `${slideInLeft} 1s cubic-bezier(0.16, 1, 0.3, 1) forwards`,
                   }}
                 />
-
-                {/* Ảnh 2 – hình vuông/chữ nhật nhỏ, đè góc dưới phải */}
                 <Box
                   component="img"
                   src="https://suckhoedoisong.qltns.mediacdn.vn/324455921873985536/2025/7/7/hinh-anh-7-7-25-luc-0836-17518522026332056839590.jpeg"
@@ -340,8 +384,8 @@ const HomePage = () => {
                   sx={{
                     position: "absolute",
                     bottom: -50,
-                    right: -180,
-                    width: "60%",
+                    right: -350,
+                    width: "100%",
                     height: "45%",
                     objectFit: "cover",
                     borderRadius: 6,
@@ -413,7 +457,6 @@ const HomePage = () => {
                       },
                     }}
                   >
-                    {/* Icon */}
                     <Box
                       className="feat-icon"
                       sx={{
@@ -432,14 +475,11 @@ const HomePage = () => {
                     >
                       {f.icon}
                     </Box>
-
                     <Typography sx={{ fontWeight: 800, fontSize: "1.2rem", mb: 1.5, color: "#0F172A", fontFamily: '"Sora",system-ui,sans-serif' }}>
                       {f.title}
                     </Typography>
                     <Typography sx={{ color: "#64748B", lineHeight: 1.75, mb: 3.5, fontSize: ".96rem" }}>{f.desc}</Typography>
-
                     <Divider sx={{ mb: 3, borderColor: "#F1F5F9" }} />
-
                     <Stack spacing={1.2}>
                       {f.check.map((c, j) => (
                         <Stack key={j} direction="row" spacing={1.2} alignItems="center">
@@ -465,31 +505,6 @@ const HomePage = () => {
           background: "linear-gradient(145deg,#040D08 0%,#0A1628 50%,#030D08 100%)",
         }}
       >
-        {/* Mesh orbs */}
-        {[
-          { top: "-40%", left: "-10%", size: 700, color: "rgba(16,185,129,.12)", delay: "0s" },
-          { bottom: "-40%", right: "-10%", size: 700, color: "rgba(59,130,246,.1)", delay: "3s" },
-          { top: "20%", right: "20%", size: 300, color: "rgba(34,197,94,.08)", delay: "1.5s" },
-        ].map((o, i) => (
-          <Box
-            key={i}
-            sx={{
-              position: "absolute",
-              width: o.size,
-              height: o.size,
-              top: o.top,
-              left: o.left,
-              bottom: o.bottom,
-              right: o.right,
-              background: `radial-gradient(circle,${o.color} 0%,transparent 70%)`,
-              filter: "blur(72px)",
-              pointerEvents: "none",
-              animation: `${orb} 16s ${o.delay} infinite ease-in-out alternate`,
-            }}
-          />
-        ))}
-
-        {/* Grid texture */}
         <Box
           sx={{
             position: "absolute",
@@ -502,23 +517,12 @@ const HomePage = () => {
 
         <Container maxWidth="md" sx={{ position: "relative", zIndex: 1, textAlign: "center" }}>
           <FadeUp>
-            <Box
-              sx={{
-                display: "inline-block",
-                px: 3,
-                py: 0.8,
-                mb: 3,
-                borderRadius: 10,
-                border: "1px solid rgba(34,197,94,.3)",
-                bgcolor: "rgba(34,197,94,.08)",
-              }}
-            >
+            <Box sx={{ display: "inline-block", px: 3, py: 0.8, mb: 3, borderRadius: 10, border: "1px solid rgba(34,197,94,.3)", bgcolor: "rgba(34,197,94,.08)" }}>
               <Typography sx={{ fontSize: ".78rem", fontWeight: 800, color: "#4ADE80", textTransform: "uppercase", letterSpacing: 1.4 }}>
                 Tham gia miễn phí ngay hôm nay
               </Typography>
             </Box>
           </FadeUp>
-
           <FadeUp delay={0.1}>
             <Typography
               sx={{
@@ -533,18 +537,9 @@ const HomePage = () => {
                 WebkitTextFillColor: "transparent",
               }}
             >
-              Sẵn sàng cho
-              <br />
-              trận đấu tiếp theo?
+              Sẵn sàng cho trận đấu tiếp theo?
             </Typography>
           </FadeUp>
-
-          <FadeUp delay={0.2}>
-            <Typography sx={{ color: "rgba(255,255,255,.55)", mb: 6, fontSize: "1.15rem", lineHeight: 1.7, maxWidth: 520, mx: "auto" }}>
-              Hàng nghìn người chơi đang chờ bạn. Đặt sân trong 30 giây và tận hưởng Pickleball ngay hôm nay.
-            </Typography>
-          </FadeUp>
-
           <FadeUp delay={0.3}>
             <Button
               component={Link}
@@ -553,13 +548,7 @@ const HomePage = () => {
               size="large"
               endIcon={<ArrowForward />}
               sx={{
-                px: 7,
-                py: 2.2,
-                borderRadius: 3,
-                fontWeight: 900,
-                fontSize: "1.1rem",
-                textTransform: "none",
-                letterSpacing: 0.4,
+                px: 7, py: 2.2, borderRadius: 3, fontWeight: 900, fontSize: "1.1rem", textTransform: "none",
                 background: "linear-gradient(135deg,#16A34A,#22C55E)",
                 boxShadow: "0 0 48px rgba(34,197,94,.35)",
                 transition: "all .3s",
@@ -570,37 +559,26 @@ const HomePage = () => {
             </Button>
           </FadeUp>
 
-          {/* Feature pills */}
-          <FadeUp delay={0.45}>
-            <Grid container spacing={2.5} sx={{ mt: { xs: 7, md: 11 } }}>
-              {ctaItems.map((item, i) => (
-                <Grid item xs={6} md={3} key={i}>
-                  <Stack
-                    alignItems="center"
-                    spacing={1.5}
-                    sx={{
-                      p: 3,
-                      borderRadius: 4,
-                      border: "1px solid rgba(255,255,255,.07)",
-                      background: "rgba(255,255,255,.04)",
-                      backdropFilter: "blur(12px)",
-                      transition: "all .3s",
-                      "&:hover": {
-                        background: "rgba(34,197,94,.08)",
-                        border: "1px solid rgba(34,197,94,.2)",
-                        transform: "translateY(-4px)",
-                      },
-                    }}
-                  >
-                    <Box sx={{ color: "#22C55E" }}>{item.icon}</Box>
-                    <Typography sx={{ fontSize: ".85rem", fontWeight: 700, color: "rgba(255,255,255,.8)", letterSpacing: 0.3 }}>
-                      {item.label}
-                    </Typography>
-                  </Stack>
-                </Grid>
-              ))}
-            </Grid>
-          </FadeUp>
+          <Grid container spacing={2.5} sx={{ mt: { xs: 7, md: 11 } }}>
+            {ctaItems.map((item, i) => (
+              <Grid item xs={6} md={3} key={i}>
+                <Stack
+                  alignItems="center"
+                  spacing={1.5}
+                  sx={{
+                    p: 3, borderRadius: 4, border: "1px solid rgba(255,255,255,.07)", background: "rgba(255,255,255,.04)",
+                    backdropFilter: "blur(12px)", transition: "all .3s",
+                    "&:hover": { background: "rgba(34,197,94,.08)", border: "1px solid rgba(34,197,94,.2)", transform: "translateY(-4px)" },
+                  }}
+                >
+                  <Box sx={{ color: "#22C55E" }}>{item.icon}</Box>
+                  <Typography sx={{ fontSize: ".85rem", fontWeight: 700, color: "rgba(255,255,255,.8)", letterSpacing: 0.3 }}>
+                    {item.label}
+                  </Typography>
+                </Stack>
+              </Grid>
+            ))}
+          </Grid>
         </Container>
       </Box>
     </Box>
