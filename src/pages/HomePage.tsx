@@ -1,4 +1,4 @@
-import { Box, Container, Typography, Button, Grid, Card, Stack, Divider, useTheme } from "@mui/material";
+import { Box, Container, Typography, Button, Grid, Card, Stack, Divider } from "@mui/material";
 import { Link } from "react-router-dom";
 import {
   PlayCircleFilled,
@@ -16,14 +16,6 @@ import { keyframes } from "@mui/system";
 import { useEffect, useState } from "react";
 
 /* ── Animations ─────────────────────────────────────────── */
-const float = keyframes`
-  0%,100% { transform: translateY(0px) rotate(-1.5deg); }
-  50%      { transform: translateY(-18px) rotate(-0.5deg); }
-`;
-const floatCard = keyframes`
-  0%,100% { transform: translateY(0px) rotate(1deg); }
-  50%      { transform: translateY(12px) rotate(0.5deg); }
-`;
 const orb = keyframes`
   0%,100% { transform: scale(1) translate(0,0); opacity:.7; }
   40%      { transform: scale(1.15) translate(30px,-25px); opacity:1; }
@@ -44,11 +36,7 @@ const slideInLeft = keyframes`
 const slideInRight = keyframes`
   from { opacity: 0; transform: translateX(100px); }
   to { opacity: 1; transform: translateX(0); }
-`;
-const spin = keyframes`
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-`;
+`
 const ping = keyframes`
   75%,100% { transform: scale(2); opacity: 0; }
 `;
@@ -356,7 +344,7 @@ const HomePage = () => {
               </FadeUp>
             </Grid>
 
-            {/* Right visual */}
+            {/* Right visual - Hidden on small screens to keep layout clean */}
             <Grid item xs={12} md={5} sx={{ display: { xs: "none", md: "flex" }, justifyContent: "center", alignItems: "center" }}>
               <Box sx={{ position: "relative", width: "100%", maxWidth: 640, height: 520 }}>
                 <Box
@@ -366,13 +354,12 @@ const HomePage = () => {
                   sx={{
                     position: "absolute",
                     top: 0,
-                    left: 0,
-                    width: "150%",
+                    left: { xs: "10%", md: 0 },
+                    width: { xs: "80%", md: "150%" },
                     height: "90%",
                     objectFit: "cover",
                     borderRadius: 6,
-                    border: "4px solid #fff",
-                    boxShadow: "0 32px 64px -16px rgba(0,0,0,.15)",
+                    boxShadow: "0 40px 80px -20px rgba(15, 23, 42, 0.15)",
                     zIndex: 1,
                     animation: `${slideInLeft} 1s cubic-bezier(0.16, 1, 0.3, 1) forwards`,
                   }}
@@ -383,14 +370,13 @@ const HomePage = () => {
                   alt="Pickleball players"
                   sx={{
                     position: "absolute",
-                    bottom: -50,
-                    right: -350,
-                    width: "100%",
+                    bottom: { xs: "-10%", md: -50 },
+                    right: { xs: "-5%", md: -350 },
+                    width: { xs: "60%", md: "100%" },
                     height: "45%",
                     objectFit: "cover",
                     borderRadius: 6,
-                    border: "4px solid #fff",
-                    boxShadow: "0 24px 48px -12px rgba(0,0,0,.2)",
+                    boxShadow: "0 30px 60px -15px rgba(15, 23, 42, 0.2)",
                     zIndex: 2,
                     animation: `${slideInRight} 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards`,
                   }}
