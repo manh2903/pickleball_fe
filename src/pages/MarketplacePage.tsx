@@ -1,11 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Box, Container, Grid, Typography, Card, CardContent, CardMedia, 
   Chip, Button, TextField, InputAdornment, Skeleton, Stack,
   MenuItem, Select, FormControl, InputLabel, Drawer, Slider, 
   FormGroup, FormControlLabel, Checkbox, IconButton, Divider,
-  Fade, Zoom, Paper, Pagination, CircularProgress
+  Fade, Zoom, Paper, Pagination, CircularProgress, Autocomplete
 } from '@mui/material';
 import { 
   Search, LocationOn, SportsTennis, FilterList, 
@@ -135,6 +135,11 @@ const BLANK_FILTERS = {
 };
 
 const MarketplacePage = () => {
+  // Automatically scroll to top when page mounts
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [page, setPage] = useState(1);
 
@@ -149,14 +154,14 @@ const MarketplacePage = () => {
     queryKey: ['provinces'],
     queryFn: () => locationApi.getProvinces(),
   });
-  const provinces = provinceRes?.data?.data || [];
+  const provinces = provinceRes?.data || [];
 
   const { data: wardRes, isLoading: isWardsLoading } = useQuery({
     queryKey: ['wards', draftFilters.province_id],
     queryFn: () => locationApi.getWards(draftFilters.province_id),
     enabled: !!draftFilters.province_id,
   });
-  const wards = wardRes?.data?.data || [];
+  const wards = wardRes?.data || [];
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['venues', appliedFilters, page],
@@ -264,21 +269,38 @@ const MarketplacePage = () => {
                   />
                 </Grid>
                 <Grid item xs={6} md={3} sx={{ borderLeft: { md: '1px solid #E2E8F0' } }}>
-                  <FormControl variant="standard" fullWidth sx={{ px: 2 }}>
-                    <InputLabel id="city-label" sx={{ ml: 2, fontWeight: 700 }}>Tỉnh/Thành phố</InputLabel>
-                    <Select
-                      labelId="city-label"
-                      value={draftFilters.province_id}
-                      label="Tỉnh/Thành phố"
-                      onChange={(e) => handleProvinceChange(e.target.value)}
-                      disableUnderline
-                      sx={{ fontWeight: 700, pt: 1 }}
-                    >
-                      <MenuItem value="">Tất cả khu vực</MenuItem>
-                      {provinces.map((p: any) => (
-                        <MenuItem key={p.ma_tinh} value={p.ma_tinh}>{p.ten_tinh}</MenuItem>
-                      ))}
-                    </Select>
+                  <FormControl variant="standard" fullWidth sx={{ px: 2, pt: 0.5 }}>
+                    <Autocomplete
+                      id="province-autocomplete"
+                      options={[{ ma_tinh: '', ten_tinh: 'Tất cả khu vực' }, ...provinces]}
+                      getOptionLabel={(option) => option.ten_tinh}
+                      isOptionEqualToValue={(option, value) => option.ma_tinh === value.ma_tinh}
+                      value={
+                        draftFilters.province_id === '' 
+                          ? { ma_tinh: '', ten_tinh: 'Tất cả khu vực' }
+                          : provinces.find((p: any) => p.ma_tinh === draftFilters.province_id) || { ma_tinh: '', ten_tinh: 'Tất cả khu vực' }
+                      }
+                      onChange={(_, newValue) => handleProvinceChange(newValue ? newValue.ma_tinh : '')}
+                      disableClearable={draftFilters.province_id === ''}
+                      renderInput={(params) => (
+                        <TextField 
+                          {...params} 
+                          label="Tỉnh/Thành phố" 
+                          variant="standard" 
+                          InputProps={{
+                            ...params.InputProps,
+                            disableUnderline: true,
+                          }}
+                          InputLabelProps={{
+                            sx: { fontWeight: 700, color: 'text.secondary' }
+                          }}
+                        />
+                      )}
+                      sx={{ 
+                        '& .MuiInputBase-input': { fontWeight: 700, color: '#1E293B', py: '6px' },
+                        '& .MuiInputLabel-root.Mui-focused': { color: 'primary.main' }
+                      }}
+                    />
                   </FormControl>
                 </Grid>
                 <Grid item xs={6} md={2} sx={{ borderLeft: { md: '1px solid #E2E8F0' } }}>

@@ -1,9 +1,9 @@
-import { Routes, Route, Link, useNavigate, Navigate, useLocation } from 'react-router-dom';
-import { Box, AppBar, Toolbar, Typography, Button, Container, Avatar, Menu, MenuItem, IconButton, Tooltip, Divider } from '@mui/material';
-import { useState } from 'react';
-import { useAuthStore } from './stores/authStore';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Box } from '@mui/material';
+import Header from './components/Header';
+import Footer from './components/Footer';
+import ScrollToTop from './components/ScrollToTop';
 
-// Public/User pages
 // Public/User pages
 import HomePage from './pages/HomePage';
 import NotFound from './pages/NotFound';
@@ -38,6 +38,7 @@ import AdminVenues from './pages/AdminVenues';
 import AdminUsers from './pages/AdminUsers';
 import AdminWithdrawals from '@/pages/AdminWithdrawals';
 import AdminSettings from './pages/admin/AdminSettings';
+import { useAuthStore } from './stores/authStore';
 
 // Guard for routes
 const ProtectedRoute = ({ children, role }: { children: React.ReactNode, role?: string }) => {
@@ -48,91 +49,12 @@ const ProtectedRoute = ({ children, role }: { children: React.ReactNode, role?: 
 };
 
 function App() {
-  const { isAuthenticated, user, logout } = useAuthStore();
-  const navigate = useNavigate();
   const location = useLocation();
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-
-  const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleCloseMenu = () => {
-    setAnchorEl(null);
-  };
-
-  const handleLogout = () => {
-    logout();
-    handleCloseMenu();
-    navigate('/login');
-  };
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Hide standard AppBar on Owner routes */}
-      {!location.pathname.startsWith('/owner') && (
-        <AppBar position="sticky" color="default" elevation={0} sx={{ 
-          borderBottom: '1px solid', 
-          borderColor: 'divider',
-          background: 'rgba(255, 255, 255, 0.85)',
-          backdropFilter: 'blur(12px)',
-          zIndex: 1100
-        }}>
-          <Toolbar sx={{ justifyContent: 'space-between' }}>
-            <Typography variant="h6" component={Link} to="/" sx={{ 
-              fontWeight: 800, 
-              color: 'primary.main', 
-              display: 'flex', 
-              alignItems: 'center',
-              textDecoration: 'none'
-            }}>
-              <Box component="span" sx={{ mr: 1, fontSize: '1.5rem' }}>🏓</Box> Pickleball Hub
-            </Typography>
-
-            <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1, alignItems: 'center' }}>
-              <Button color="inherit" component={Link} to="/">Trang chủ</Button>
-              <Button color="inherit" component={Link} to="/marketplace">Khám phá</Button>
-              
-              {isAuthenticated ? (
-                <Box sx={{ ml: 2 }}>
-                  <Tooltip title="Tài khoản">
-                    <IconButton onClick={handleOpenMenu} sx={{ p: 0.5, border: '2px solid', borderColor: 'primary.light' }}>
-                      <Avatar alt={user?.name} src={user?.avatar} sx={{ width: 32, height: 32 }} />
-                    </IconButton>
-                  </Tooltip>
-                  <Menu
-                    sx={{ mt: '45px' }}
-                    id="menu-appbar"
-                    anchorEl={anchorEl}
-                    anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-                    keepMounted
-                    transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                    open={Boolean(anchorEl)}
-                    onClose={handleCloseMenu}
-                  >
-                    <MenuItem disabled><Typography variant="caption" sx={{ fontWeight: 700 }}>{user?.name}</Typography></MenuItem>
-                    <Divider />
-                    <MenuItem onClick={() => { handleCloseMenu(); navigate('/profile'); }}>Hồ sơ</MenuItem>
-                    <MenuItem onClick={() => { handleCloseMenu(); navigate('/my-bookings'); }}>Lịch đặt của tôi</MenuItem>
-                    {user?.role === 'owner' && (
-                      <MenuItem onClick={() => { handleCloseMenu(); navigate('/owner/dashboard'); }} sx={{ color: 'primary.main', fontWeight: 600 }}>Quản trị Sân</MenuItem>
-                    )}
-                    {user?.role === 'admin' && (
-                      <MenuItem onClick={() => { handleCloseMenu(); navigate('/admin/dashboard'); }} sx={{ color: 'error.main', fontWeight: 600 }}>Admin Panel</MenuItem>
-                    )}
-                    <Divider />
-                    <MenuItem onClick={handleLogout}>Đăng xuất</MenuItem>
-                  </Menu>
-                </Box>
-              ) : (
-                <Button color="primary" variant="contained" sx={{ ml: 2, borderRadius: 1, px: 3 }} component={Link} to="/login">
-                  Đăng nhập
-                </Button>
-              )}
-            </Box>
-          </Toolbar>
-        </AppBar>
-      )}
+      {/* Hide standard AppBar on Owner/Admin routes or specific layouts */}
+      {!location.pathname.startsWith('/owner') && !location.pathname.startsWith('/admin') && <Header />}
 
       <Box component="main" sx={{ flexGrow: 1 }}>
         <Routes>
@@ -178,18 +100,11 @@ function App() {
         </Routes>
       </Box>
 
-      {/* Hide footer on Owner routes */}
-      {!location.pathname.startsWith('/owner') && (
-        <Box component="footer" sx={{ p: 6, textAlign: 'center', borderTop: '1px solid', borderColor: 'divider', bgcolor: 'white' }}>
-          <Typography variant="h6" color="primary" gutterBottom sx={{ fontWeight: 800 }}>🏓 Pickleball Hub</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Nền tảng đặt sân hàng đầu dành cho cộng đồng Pickleball Việt Nam.
-          </Typography>
-          <Typography variant="caption" color="text.disabled">
-            © 2024 Pickleball Hub. Designed for Winners.
-          </Typography>
-        </Box>
-      )}
+      {/* Hide footer on Owner/Admin routes */}
+      {!location.pathname.startsWith('/owner') && !location.pathname.startsWith('/admin') && <Footer />}
+      
+      {/* Global Scroll To Top Button */}
+      <ScrollToTop />
     </Box>
   );
 }
