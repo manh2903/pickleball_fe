@@ -13,6 +13,7 @@ import {
 import { useSnackbar } from 'notistack';
 import { ownerApi } from '@/api/ownerApi';
 import { locationApi } from '@/api/locationApi';
+import { systemApi } from '@/api/systemApi';
 import { AMENITIES_LIST } from '@/constants/amenities';
 
 const OwnerVenueAdd = () => {
@@ -51,6 +52,14 @@ const OwnerVenueAdd = () => {
     enabled: !!formData.province_id,
   });
   const wards = wardRes?.data || [];
+
+  // Fetch system settings for commission info
+  const { data: settingsRes } = useQuery({
+    queryKey: ['system-settings'],
+    queryFn: () => systemApi.getSettings(),
+  });
+  const settings = settingsRes?.data || {};
+  const currentCommission = settings.default_commission_rate || '10';
 
   const handleProvinceChange = (province_id: string) => {
     setFormData({ 
@@ -225,6 +234,19 @@ const OwnerVenueAdd = () => {
              </Stack>
 
              <Grid container spacing={4}>
+                <Grid item xs={12}>
+                   <Box sx={{ p: 2, bgcolor: '#EFF6FF', borderRadius: 3, border: '1px solid #DBEAFE', display: 'flex', alignItems: 'center' }}>
+                      <Payments sx={{ color: 'primary.main', mr: 2 }} />
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'primary.dark' }}>
+                          Phí dịch vụ nền tảng (Commission)
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: 'primary.main' }}>
+                          Hệ thống sẽ tự động áp dụng mức phí sàn mặc định (hiện tại là <Box component="span" sx={{ fontWeight: 900, color: 'red' }}>{currentCommission}%</Box>) cho mỗi giao dịch thành công. Bạn có thể xem chi tiết trong phần Ví tiền sau khi được duyệt.
+                        </Typography>
+                      </Box>
+                   </Box>
+                </Grid>
                 <Grid item xs={12} sm={3}>
                   <TextField 
                     label="Giá Sáng (6h-11h)" 

@@ -77,7 +77,7 @@ const OwnerLayout = () => {
     { text: 'Khuyến mãi', icon: <ConfirmationNumber />, path: '/owner/coupons' },
     { text: 'Ví tiền & Thanh toán', icon: <AccountBalanceWallet />, path: '/owner/wallet' },
     { text: 'Đánh giá', icon: <Star />, path: `/owner/reviews/${activeVenueId}` },
-    { text: 'Thông tin cơ sở', icon: <Settings />, path: '/owner/settings' },
+    { text: 'Thông tin cơ sở hiện tại', icon: <Settings />, path: '/owner/settings' },
     { text: 'Danh sách cơ sở', icon: <SportsTennis />, path: '/owner/venues' },
   ];
 
