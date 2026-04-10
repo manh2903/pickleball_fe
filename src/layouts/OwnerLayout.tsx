@@ -68,7 +68,6 @@ const OwnerLayout = () => {
 
   const menuItems = [
     { text: 'Tổng quan', icon: <Dashboard />, path: '/owner/dashboard' },
-    { text: 'Quầy Check-in', icon: <QrCodeScanner />, path: '/owner/checkin' },
     { text: 'Lịch đặt sân', icon: <EventNote />, path: '/owner/bookings' },
     { text: 'Danh sách sân', icon: <SportsTennis />, path: '/owner/courts' },
     { text: 'Quản lý Nhân viên', icon: <BadgeIcon />, path: '/owner/staffs' },

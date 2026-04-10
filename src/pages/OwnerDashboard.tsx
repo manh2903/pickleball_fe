@@ -12,11 +12,13 @@ import {
   AccountBalanceWallet, PendingActions,
   ArrowForward, Visibility, PointOfSale,
   AccessTime, CheckCircle, Person,
-  OpenInNew
+  OpenInNew, QrCode, ErrorOutline
 } from '@mui/icons-material';
 import { ownerApi } from '@/api/ownerApi';
 
 import WalkInBookingModal from '@/components/WalkInBookingModal';
+import CheckInModal from '@/components/CheckInModal';
+import IncidentReportModal from '@/components/IncidentReportModal';
 import { useState } from 'react';
 
 const StatCard = ({ title, value, icon, color, subtitle, trend }: any) => (
@@ -58,6 +60,8 @@ const OwnerDashboard = () => {
   });
 
   const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);
+  const [isCheckInOpen, setIsCheckInOpen] = useState(false);
+  const [isIncidentOpen, setIsIncidentOpen] = useState(false);
   const stats = data?.data;
 
   if (isLoading) return <Box sx={{ py: 10, textAlign: 'center' }}><CircularProgress thickness={5} size={60} /></Box>;
@@ -66,7 +70,6 @@ const OwnerDashboard = () => {
 
   return (
     <Box sx={{ px: { xs: 1, md: 0 } }}>
-      {/* ... previous content ... */}
       <Box sx={{ mb: 6, display: 'flex', flexWrap: 'wrap', gap: 3, justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
           <Typography variant="h3" sx={{ fontWeight: 950, fontFamily: 'Times New Roman', mb: 1, letterSpacing: -1 }}>Tổng quan vận hành 🏢</Typography>
@@ -219,14 +222,27 @@ const OwnerDashboard = () => {
                     <Button 
                        fullWidth
                        variant="contained" 
-                       startIcon={<CheckCircle />}
-                       onClick={() => navigate('../checkin')}
+                       startIcon={<QrCode />}
+                       onClick={() => setIsCheckInOpen(true)}
                        sx={{ 
                           py: 1.8, borderRadius: 3, fontWeight: 900, fontSize: '0.85rem',
                           bgcolor: 'white', color: '#0F172A', '&:hover': { bgcolor: '#F1F5F9' }
                        }}
                     >
-                       CHECK-IN KHÁCH HÀNG (QR)
+                       CHECK-IN KHÁCH HÀNG
+                    </Button>
+                    <Button 
+                       fullWidth
+                       variant="outlined" 
+                       startIcon={<ErrorOutline />}
+                       onClick={() => setIsIncidentOpen(true)}
+                       sx={{ 
+                          py: 1.8, borderRadius: 3, fontWeight: 900, fontSize: '0.85rem',
+                          borderColor: 'rgba(255,255,255,0.2)', color: 'white',
+                          '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.05)' }
+                       }}
+                    >
+                       BÁO CÁO SỰ CỐ
                     </Button>
                     <Button 
                        fullWidth
@@ -272,6 +288,17 @@ const OwnerDashboard = () => {
         open={isWalkInModalOpen} 
         onClose={() => setIsWalkInModalOpen(false)} 
         venueId={venueId} 
+      />
+
+      <CheckInModal 
+        open={isCheckInOpen} 
+        onClose={() => setIsCheckInOpen(false)} 
+      />
+
+      <IncidentReportModal 
+        open={isIncidentOpen}
+        onClose={() => setIsIncidentOpen(false)}
+        venueId={venueId}
       />
     </Box>
   );

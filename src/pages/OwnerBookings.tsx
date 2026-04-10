@@ -3,16 +3,24 @@ import { useQuery } from '@tanstack/react-query';
 import { useOutletContext, Link } from 'react-router-dom';
 import { 
   Box, Card, Typography, Chip, 
-  Button, TextField, MenuItem, Stack 
+  Button, TextField, MenuItem, Stack,
+  IconButton, Tooltip 
 } from '@mui/material';
 import { Search, Person } from '@mui/icons-material';
 import { ownerApi } from '@/api/ownerApi';
 import DataTable, { Column } from '@/components/DataTable';
 import WalkInBookingModal from '@/components/WalkInBookingModal';
+import CheckInModal from '@/components/CheckInModal';
+import IncidentReportModal from '@/components/IncidentReportModal';
+import { CheckCircle, ErrorOutline } from '@mui/icons-material';
 
 const OwnerBookings = () => {
   const { venueId }: any = useOutletContext();
   const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);
+  const [isCheckInOpen, setIsCheckInOpen] = useState(false);
+  const [isIncidentOpen, setIsIncidentOpen] = useState(false);
+  const [activeCode, setActiveCode] = useState('');
+  const [activeCourtId, setActiveCourtId] = useState<number | string>('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [status, setStatus] = useState('all');
@@ -35,9 +43,10 @@ const OwnerBookings = () => {
 
   const STATUS_LABELS: any = {
     pending: { label: 'Chờ thanh toán', color: 'warning' },
-    confirmed: { label: 'Đã xác nhận', color: 'success' },
+    confirmed: { label: 'Đã thanh toán', color: 'success' },
     cancelled: { label: 'Đã hủy', color: 'error' },
-    completed: { label: 'Hoàn thành', color: 'info' }
+    completed: { label: 'Hoàn thành', color: 'info' },
+    checked_in: { label: 'Đã check-in', color: 'success' }
   };
 
   const columns: Column<any>[] = [
@@ -119,12 +128,45 @@ const OwnerBookings = () => {
     },
     {
       key: 'actions',
-      label: 'THAO TÁC',
+      label: 'HÀNH ĐỘNG',
       align: 'right',
       render: (row) => (
-        <Button size="small" variant="outlined" component={Link} to={`/owner/bookings/${row.booking_code}`} sx={{ borderRadius: 1, fontWeight: 700 }}>
-          Chi tiết
-        </Button>
+        <Stack direction="row" spacing={1} justifyContent="flex-end">
+          {row.status === 'confirmed' && (
+            <Tooltip title="Check-in nhanh">
+              <IconButton 
+                size="small" 
+                color="success" 
+                onClick={() => {
+                  setActiveCode(row.booking_code);
+                  setIsCheckInOpen(true);
+                }}
+                sx={{ bgcolor: '#F0FDF4' }}
+              >
+                <CheckCircle sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
+          )}
+          <Tooltip title="Báo cáo sự cố">
+            <IconButton 
+              size="small" 
+              color="error"
+              onClick={() => {
+                const courtId = row.slots?.[0]?.court?.id;
+                setActiveCourtId(courtId || '');
+                setIsIncidentOpen(true);
+              }}
+              sx={{ bgcolor: '#FEF2F2' }}
+            >
+              <ErrorOutline sx={{ fontSize: 20 }} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Xem chi tiết">
+            <IconButton size="small" component={Link} to={`/owner/bookings/${row.booking_code}`} sx={{ bgcolor: '#F1F5F9' }}>
+               <Search sx={{ fontSize: 20 }} />
+            </IconButton>
+          </Tooltip>
+        </Stack>
       )
     }
   ];
@@ -168,9 +210,10 @@ const OwnerBookings = () => {
           >
             <MenuItem value="all">Tất cả trạng thái</MenuItem>
             <MenuItem value="pending">Chờ thanh toán</MenuItem>
-            <MenuItem value="confirmed">Đã xác nhận</MenuItem>
+            <MenuItem value="confirmed">Đã n</MenuItem>
             <MenuItem value="completed">Hoàn thành</MenuItem>
             <MenuItem value="cancelled">Đã hủy</MenuItem>
+            <MenuItem value="checked_in">Đã check-in</MenuItem>
           </TextField>
         </Stack>
 
@@ -190,6 +233,25 @@ const OwnerBookings = () => {
         open={isWalkInModalOpen} 
         onClose={() => setIsWalkInModalOpen(false)} 
         venueId={venueId} 
+      />
+
+      <CheckInModal 
+        open={isCheckInOpen} 
+        onClose={() => {
+          setIsCheckInOpen(false);
+          setActiveCode('');
+        }}
+        initialCode={activeCode}
+      />
+
+      <IncidentReportModal 
+        open={isIncidentOpen}
+        onClose={() => {
+          setIsIncidentOpen(false);
+          setActiveCourtId('');
+        }}
+        venueId={venueId}
+        initialCourtId={activeCourtId}
       />
     </Box>
   );
