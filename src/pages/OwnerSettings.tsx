@@ -38,7 +38,9 @@ const OwnerSettings = () => {
     default_price_evening: 0,
     default_price_weekend_surcharge: 0,
     amenities: [],
-    images: []
+    images: [],
+    open_time: '06:00',
+    close_time: '22:00'
   });
 
   const { data, isLoading: isVenueLoading, error } = useQuery({
@@ -54,7 +56,9 @@ const OwnerSettings = () => {
         amenities: Array.isArray(data.data.amenities) ? data.data.amenities : [],
         images: Array.isArray(data.data.images) ? data.data.images : [],
         province_id: data.data.province_id || '',
-        ward_id: data.data.ward_id || ''
+        ward_id: data.data.ward_id || '',
+        open_time: data.data.open_time?.slice(0, 5) || '06:00',
+        close_time: data.data.close_time?.slice(0, 5) || '22:00'
       });
     }
   }, [data]);
@@ -244,6 +248,27 @@ const OwnerSettings = () => {
                   value={formData.address}
                   onChange={(e) => setFormData({...formData, address: e.target.value})}
                   InputProps={{ startAdornment: <InputAdornment position="start"><LocationOn sx={{ fontSize: 20 }} /></InputAdornment>, sx: { borderRadius: 3, fontWeight: 500 } }}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={2}>
+                <TextField 
+                  fullWidth label="Giờ mở cửa" 
+                  type="time"
+                  value={formData.open_time}
+                  onChange={(e) => setFormData({...formData, open_time: e.target.value})}
+                  InputProps={{ sx: { borderRadius: 3, fontWeight: 700 } }}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} md={2}>
+                <TextField 
+                  fullWidth label="Giờ đóng cửa" 
+                  type="time"
+                  value={formData.close_time}
+                  onChange={(e) => setFormData({...formData, close_time: e.target.value})}
+                  InputProps={{ sx: { borderRadius: 3, fontWeight: 700 } }}
+                  InputLabelProps={{ shrink: true }}
                 />
               </Grid>
 

@@ -21,14 +21,17 @@ import { bookingApi } from '@/api/bookingApi';
 import { useAuthStore } from '@/stores/authStore';
 import { socketService } from '@/utils/socket';
 
-const HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 6:00 to 22:00
-
 const BookingPage = () => {
   const { venueSlug } = useParams<{ venueSlug: string }>();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const { isAuthenticated, user } = useAuthStore();
   const queryClient = useQueryClient();
+
+  // Auto scroll to top on mount
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
   const [zoom, setZoom] = useState(100);
@@ -107,11 +110,21 @@ const BookingPage = () => {
   const gridData = useMemo(() => {
     const data: any = {};
     slots.forEach((slot: any) => {
-      const startTime = parseInt(slot.start_time.split(':')[0]);
       if (!data[slot.court_id]) data[slot.court_id] = {};
-      data[slot.court_id][startTime] = slot;
+      const h = parseInt(slot.start_time.split(':')[0]);
+      data[slot.court_id][h] = slot;
     });
     return data;
+  }, [slots]);
+
+  // Dynamically calculate hours from slots
+  const dynamicHours = useMemo(() => {
+    const hoursSet = new Set<number>();
+    slots.forEach((slot: any) => {
+      const h = parseInt(slot.start_time.split(':')[0]);
+      hoursSet.add(h);
+    });
+    return Array.from(hoursSet).sort((a, b) => a - b);
   }, [slots]);
 
   const selectedSlots = useMemo(() => {
@@ -149,13 +162,15 @@ const BookingPage = () => {
       return;
     }
 
+    const { name, phone, email } = customerInfo;
+
     createMutation.mutate({ 
       slot_ids: selectedSlotIds, 
       notes, 
       payment_method: paymentMethod,
-      customer_name: customerInfo.name,
-      customer_phone: customerInfo.phone,
-      customer_email: customerInfo.email
+      customer_name: name,
+      customer_phone: phone,
+      customer_email: email
     });
   };
 
@@ -216,6 +231,10 @@ const BookingPage = () => {
              <Typography variant="caption" sx={{ fontWeight: 800 }}>Đã đặt</Typography>
            </Box>
            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+             <Box sx={{ width: 14, height: 14, bgcolor: '#F472B6', borderRadius: '3px' }} />
+             <Typography variant="caption" sx={{ fontWeight: 800 }}>Bảo trì</Typography>
+           </Box>
+           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
              <Box sx={{ width: 14, height: 14, bgcolor: '#94A3B8', borderRadius: '3px' }} />
              <Typography variant="caption" sx={{ fontWeight: 800 }}>Hết hạn / Khóa</Typography>
            </Box>
@@ -228,7 +247,7 @@ const BookingPage = () => {
         {/* Visual Grid Container */}
         <Box sx={{ flexGrow: 1, overflow: 'auto', p: 1, position: 'relative' }}>
           <Paper elevation={0} sx={{ 
-            minWidth: (cellWidth * HOURS.length) + 120, 
+            minWidth: (cellWidth * dynamicHours.length) + 120, 
             borderRadius: 1.5, 
             border: '1px solid #E2E8F0',
             overflow: 'hidden'
@@ -236,7 +255,7 @@ const BookingPage = () => {
             {/* Hour Header */}
             <Box sx={{ display: 'flex', bgcolor: '#F1F5F9', borderBottom: '1px solid #CBD5E1', position: 'sticky', top: 0, zIndex: 10 }}>
               <Box sx={{ width: 120, minWidth: 120, bgcolor: '#F1F5F9', borderRight: '1px solid #94A3B8' }} />
-              {HOURS.map(hour => (
+              {dynamicHours.map(hour => (
                 <Box key={hour} sx={{ 
                   width: cellWidth, minWidth: cellWidth, 
                   textAlign: 'center', py: 1, borderRight: '1px solid #CBD5E1'
@@ -262,7 +281,7 @@ const BookingPage = () => {
                   </Box>
                   
                   {/* Slots Cells */}
-                  {HOURS.map(hour => {
+                  {dynamicHours.map(hour => {
                     const slot = gridData[court.id]?.[hour];
                     const isBooked = slot?.status === 'booked';
                     const isMaintenance = slot?.status === 'maintenance';
@@ -272,19 +291,20 @@ const BookingPage = () => {
                     
                     let bgcolor = 'white';
                     if (isMaintenance) bgcolor = '#F472B6';
-                    if (isPast) bgcolor = '#E2E8F0';
-                    if (isBooked) bgcolor = '#EF4444'; // Red takes priority
+                    else if (isPast) bgcolor = '#E2E8F0';
+                    else if (isBooked) bgcolor = '#EF4444'; // Red takes priority
+                    
                     if (isSelected) bgcolor = '#0EA5E9'; // Blue takes priority over red
                     
                     return (
                       <Tooltip key={`${court.id}-${hour}`} title={slot ? `${slot.start_time} - ${slot.end_time} | ${new Intl.NumberFormat('vi-VN').format(slot.price)}đ` : ''}>
                         <Box 
-                          onClick={() => isAvailable && handleToggleSlot(slot.id)}
+                          onClick={() => (isAvailable && !isMaintenance) && slot && handleToggleSlot(slot.id)}
                           sx={{ 
                             width: cellWidth, minWidth: cellWidth, height: 60,
                             borderRight: '1px solid #CBD5E1',
                             bgcolor,
-                            cursor: isAvailable ? 'pointer' : 'not-allowed',
+                            cursor: (isAvailable && !isMaintenance) ? 'pointer' : 'not-allowed',
                             '&:hover': isAvailable ? { bgcolor: '#E0F2FE', opacity: 0.8 } : {},
                             transition: 'all 0.1s',
                             display: 'flex',
