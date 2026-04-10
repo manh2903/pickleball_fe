@@ -4,11 +4,11 @@ import {
   ListItemIcon, ListItemText, Toolbar, Typography, 
   Divider, useTheme, useMediaQuery, IconButton,
   Paper, Button, Select, MenuItem, FormControl, InputLabel,
-  Stack, Badge, Avatar, Menu, Tooltip
+  Stack, Avatar, Menu, Tooltip
 } from '@mui/material';
 import { 
   Dashboard, SportsTennis, EventNote, Settings, 
-  Menu as MenuIcon, Storefront, QrCodeScanner, Assessment,
+  Menu as MenuIcon, QrCodeScanner, Assessment,
   Badge as BadgeIcon, AddBusiness, ErrorOutline, AccountBalanceWallet,
   Person, Logout, Star, ConfirmationNumber
 } from '@mui/icons-material';
@@ -16,6 +16,7 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ownerApi } from '@/api/ownerApi';
 import { useAuthStore } from '@/stores/authStore';
+import HeaderNotificationBell from '@/components/NotificationBell';
 
 const DRAWER_WIDTH = 280;
 
@@ -261,11 +262,7 @@ const OwnerLayout = () => {
             >
               Trang Marketplace
             </Button>
-            <IconButton sx={{ bgcolor: '#F1F5F9', color: 'text.primary' }}>
-               <Badge color="error" variant="dot">
-                  <EventNote fontSize="small" />
-               </Badge>
-            </IconButton>
+            <HeaderNotificationBell />
             
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
             

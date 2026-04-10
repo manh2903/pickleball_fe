@@ -12,6 +12,7 @@ import {
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
+import HeaderNotificationBell from '@/components/NotificationBell';
 
 const DRAWER_WIDTH = 280;
 
@@ -164,16 +165,19 @@ const AdminLayout = () => {
               Chào mừng, bạn đang quản trị toàn bộ hệ thống Pickleball Court Marketplace.
             </Typography>
           </Box>
-          <Button 
-            component={Link} 
-            to="/" 
-            startIcon={<Storefront />} 
-            variant="outlined" 
-            size="small" 
-            sx={{ borderRadius: 1, color: 'text.secondary' }}
-          >
-            Về trang chủ
-          </Button>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <HeaderNotificationBell />
+            <Button 
+              component={Link} 
+              to="/" 
+              startIcon={<Storefront />} 
+              variant="outlined" 
+              size="small" 
+              sx={{ borderRadius: 1, color: 'text.secondary' }}
+            >
+              Về trang chủ
+            </Button>
+          </Stack>
         </Paper>
 
         <Outlet />

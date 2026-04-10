@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
 
+import HeaderNotificationBell from './NotificationBell';
+
 const Header = () => {
   const { isAuthenticated, user, logout } = useAuthStore();
   const navigate = useNavigate();
@@ -47,9 +49,10 @@ const Header = () => {
             <Button color="inherit" component={Link} to="/marketplace">Khám phá</Button>
             
             {isAuthenticated ? (
-              <Box sx={{ ml: 2 }}>
+              <Box sx={{ ml: 2, display: 'flex', alignItems: 'center' }}>
+                <HeaderNotificationBell />
                 <Tooltip title="Tài khoản">
-                  <IconButton onClick={handleOpenMenu} sx={{ p: 0.5, border: '2px solid', borderColor: 'primary.light' }}>
+                  <IconButton onClick={handleOpenMenu} sx={{ p: 0.5, border: '2px solid', borderColor: 'primary.light', ml: 1 }}>
                     <Avatar alt={user?.name} src={user?.avatar} sx={{ width: 32, height: 32 }} />
                   </IconButton>
                 </Tooltip>

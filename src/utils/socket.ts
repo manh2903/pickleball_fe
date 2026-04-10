@@ -31,6 +31,10 @@ class SocketService {
     this.socket?.emit('join-venue', venueId);
   }
 
+  joinUser(userId: number | string) {
+    this.socket?.emit('join-user', userId);
+  }
+
   joinAdmin() {
     this.socket?.emit('join-admin');
   }
@@ -41,6 +45,10 @@ class SocketService {
 
   onNewBooking(callback: (data: any) => void) {
     this.socket?.on('new-booking', callback);
+  }
+
+  onNewNotification(callback: (data: any) => void) {
+    this.socket?.on('new-notification', callback);
   }
 
   onBookingStatusUpdated(callback: (data: { id: number, status: string }) => void) {

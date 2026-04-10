@@ -21,6 +21,7 @@ import ProfilePage from './pages/ProfilePage';
 import OwnerLayout from './layouts/OwnerLayout';
 import OwnerDashboard from './pages/OwnerDashboard';
 import OwnerBookings from './pages/OwnerBookings';
+import OwnerBookingDetail from './pages/OwnerBookingDetail';
 import OwnerCheckin from './pages/OwnerCheckin';
 import OwnerCourts from './pages/OwnerCourts';
 import OwnerVenues from './pages/OwnerVenues';
@@ -77,6 +78,7 @@ function App() {
             <Route index element={<Navigate to="/owner/dashboard" />} />
             <Route path="dashboard" element={<OwnerDashboard />} />
             <Route path="bookings" element={<OwnerBookings />} />
+            <Route path="bookings/:bookingCode" element={<OwnerBookingDetail />} />
             <Route path="checkin" element={<OwnerCheckin />} />
             <Route path="courts" element={<OwnerCourts />} />
             <Route path="staffs" element={<OwnerStaffs />} />

@@ -28,8 +28,8 @@ const OwnerBookings = () => {
     enabled: !!venueId,
   });
 
-  const bookings = data?.data?.rows || [];
-  const total = data?.data?.count || 0;
+  const bookings = data?.data?.bookings || [];
+  const total = data?.data?.total || 0;
 
   const STATUS_LABELS: any = {
     pending: { label: 'Chờ thanh toán', color: 'warning' },
@@ -44,8 +44,8 @@ const OwnerBookings = () => {
       label: 'MÃ ĐƠN / NGÀY',
       render: (row) => (
         <Box>
-          <Typography variant="body2" sx={{ fontWeight: 800, color: 'primary.main' }}>#{row.booking_number}</Typography>
-          <Typography variant="caption" color="text.secondary">{new Date(row.booking_date).toLocaleDateString('vi-VN')}</Typography>
+          <Typography variant="body2" sx={{ fontWeight: 800, color: 'primary.main' }}>#{row.booking_code}</Typography>
+          <Typography variant="caption" color="text.secondary">{new Date(row.createdAt).toLocaleDateString('vi-VN')}</Typography>
         </Box>
       )
     },
@@ -106,7 +106,7 @@ const OwnerBookings = () => {
       label: 'THAO TÁC',
       align: 'right',
       render: (row) => (
-        <Button size="small" variant="outlined" component={Link} to={`/owner/bookings/${row.id}`} sx={{ borderRadius: 1, fontWeight: 700 }}>
+        <Button size="small" variant="outlined" component={Link} to={`/owner/bookings/${row.booking_code}`} sx={{ borderRadius: 1, fontWeight: 700 }}>
           Chi tiết
         </Button>
       )

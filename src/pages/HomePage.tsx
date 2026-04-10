@@ -343,42 +343,48 @@ const HomePage = () => {
                 </Box>
               </FadeUp>
             </Grid>
-
-            {/* Right visual - Hidden on small screens to keep layout clean */}
+            
+            {/* Right visual - Responsive Image Montage (Enlarged) */}
             <Grid item xs={12} md={5} sx={{ display: { xs: "none", md: "flex" }, justifyContent: "center", alignItems: "center" }}>
-              <Box sx={{ position: "relative", width: "100%", maxWidth: 640, height: 520 }}>
+              <Box sx={{ 
+                position: "relative", 
+                width: "125%", 
+                transform: "translateX(15%)", 
+                perspective: "1000px" 
+              }}>
+                {/* Main Large Image */}
                 <Box
                   component="img"
                   src="https://cdn.shopvnb.com/uploads/images/bai_viet/tong-hop-dan-pickleball-hot-girl-8-1748226218.webp"
                   alt="Pickleball court"
                   sx={{
-                    position: "absolute",
-                    top: 0,
-                    left: { xs: "10%", md: 0 },
-                    width: { xs: "80%", md: "150%" },
-                    height: "90%",
-                    objectFit: "cover",
-                    borderRadius: 6,
-                    boxShadow: "0 40px 80px -20px rgba(15, 23, 42, 0.15)",
+                    width: "100%",
+                    height: "auto",
+                    borderRadius: 5,
+                    boxShadow: "0 40px 100px -20px rgba(15, 23, 42, 0.25)",
                     zIndex: 1,
                     animation: `${slideInLeft} 1s cubic-bezier(0.16, 1, 0.3, 1) forwards`,
+                    border: '5px solid white',
+                    display: 'block'
                   }}
                 />
+                {/* Secondary Inset Image */}
                 <Box
                   component="img"
                   src="https://suckhoedoisong.qltns.mediacdn.vn/324455921873985536/2025/7/7/hinh-anh-7-7-25-luc-0836-17518522026332056839590.jpeg"
                   alt="Pickleball players"
                   sx={{
                     position: "absolute",
-                    bottom: { xs: "-10%", md: -50 },
-                    right: { xs: "-5%", md: -350 },
-                    width: { xs: "60%", md: "100%" },
-                    height: "45%",
-                    objectFit: "cover",
-                    borderRadius: 6,
-                    boxShadow: "0 30px 60px -15px rgba(15, 23, 42, 0.2)",
+                    bottom: "-15%",
+                    right: "-15%",
+                    width: "65%",
+                    height: "auto",
+                    borderRadius: 5,
+                    boxShadow: "0 40px 80px -20px rgba(15, 23, 42, 0.35)",
                     zIndex: 2,
                     animation: `${slideInRight} 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards`,
+                    border: '5px solid white',
+                    display: 'block'
                   }}
                 />
               </Box>
