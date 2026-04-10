@@ -17,20 +17,20 @@ import { paymentApi } from '@/api/paymentApi';
 import { useSnackbar } from 'notistack';
 
 const BookingSuccessPage = () => {
-  const { id } = useParams<{ id: string }>();
+  const { bookingCode } = useParams<{ bookingCode: string }>();
   const { enqueueSnackbar } = useSnackbar();
 
   const { data: bookingRes, isLoading, error } = useQuery({
-    queryKey: ['booking-detail', id],
-    queryFn: () => bookingApi.getBookingById(id!),
-    enabled: !!id,
+    queryKey: ['booking-detail', bookingCode],
+    queryFn: () => bookingApi.getBookingById(bookingCode!),
+    enabled: !!bookingCode,
   });
 
   const booking = bookingRes?.data;
 
   const handlePayment = async () => {
     try {
-      const res = await paymentApi.createVNPayUrl(id!);
+      const res = await paymentApi.createVNPayUrl(bookingCode!);
       if (res.data) {
         window.location.href = res.data;
       }
