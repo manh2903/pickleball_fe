@@ -16,6 +16,9 @@ import {
 } from '@mui/icons-material';
 import { ownerApi } from '@/api/ownerApi';
 
+import WalkInBookingModal from '@/components/WalkInBookingModal';
+import { useState } from 'react';
+
 const StatCard = ({ title, value, icon, color, subtitle, trend }: any) => (
   <Card sx={{ 
     p: 3, borderRadius: 3, height: '100%', 
@@ -54,6 +57,7 @@ const OwnerDashboard = () => {
     refetchInterval: 60000 // Refresh every 1min
   });
 
+  const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);
   const stats = data?.data;
 
   if (isLoading) return <Box sx={{ py: 10, textAlign: 'center' }}><CircularProgress thickness={5} size={60} /></Box>;
@@ -62,7 +66,7 @@ const OwnerDashboard = () => {
 
   return (
     <Box sx={{ px: { xs: 1, md: 0 } }}>
-      {/* Header Section */}
+      {/* ... previous content ... */}
       <Box sx={{ mb: 6, display: 'flex', flexWrap: 'wrap', gap: 3, justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
           <Typography variant="h3" sx={{ fontWeight: 950, fontFamily: 'Times New Roman', mb: 1, letterSpacing: -1 }}>Tổng quan vận hành 🏢</Typography>
@@ -146,37 +150,46 @@ const OwnerDashboard = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {stats.recentBookings?.map((booking: any) => (
-                    <TableRow key={booking.id} hover sx={{ '& td': { borderBottom: '1px solid #F8FAFC' } }}>
-                      <TableCell>
-                        <Stack direction="row" spacing={2} alignItems="center">
-                           <Avatar sx={{ width: 40, height: 40, bgcolor: theme.palette.primary.main, fontWeight: 900 }}>
-                              {booking.user?.name?.charAt(0) || 'K'}
-                           </Avatar>
-                           <Box>
-                              <Typography variant="body2" sx={{ fontWeight: 800 }}>{booking.user?.name || 'Vãng lai'}</Typography>
-                              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>{booking.user?.phone}</Typography>
-                           </Box>
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{booking.court?.name}</Typography>
-                        <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#64748B', fontWeight: 600 }}>
-                           <AccessTime sx={{ fontSize: 14 }} /> 
-                           {booking.slots?.[0]?.start_time.slice(0, 5)} - {booking.slots?.[0]?.end_time.slice(0, 5)}
-                        </Typography>
-                      </TableCell>
+                  {stats.recentBookings?.map((booking: any) => {
+                    const slots = booking.slots || [];
+                    const uniqueCourts = Array.from(new Set(slots.map((s: any) => s.court?.name))).filter(Boolean);
+                    const startTime = slots.length > 0 ? slots.map((s: any) => s.start_time).sort()[0]?.slice(0, 5) : 'N/A';
+                    const endTime = slots.length > 0 ? slots.map((s: any) => s.end_time).sort().reverse()[0]?.slice(0, 5) : 'N/A';
+
+                    return (
+                      <TableRow key={booking.id} hover sx={{ '& td': { borderBottom: '1px solid #F8FAFC' } }}>
+                        <TableCell>
+                          <Stack direction="row" spacing={2} alignItems="center">
+                            <Avatar sx={{ width: 40, height: 40, bgcolor: theme.palette.primary.main, fontWeight: 900 }}>
+                                {(booking.user?.name || booking.customer_name || 'K').charAt(0)}
+                            </Avatar>
+                            <Box>
+                                <Typography variant="body2" sx={{ fontWeight: 800 }}>{booking.user?.name || booking.customer_name || 'Vãng lai'}</Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>{booking.user?.phone || booking.customer_phone}</Typography>
+                            </Box>
+                          </Stack>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                            {uniqueCourts.length > 0 ? uniqueCourts.join(', ') : (booking.court?.name || 'N/A')}
+                          </Typography>
+                          <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#64748B', fontWeight: 600 }}>
+                            <AccessTime sx={{ fontSize: 14 }} /> 
+                            {startTime} - {endTime}
+                          </Typography>
+                        </TableCell>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 900, color: 'primary.dark' }}>{new Intl.NumberFormat('vi-VN').format(booking.total_price)}đ</Typography>
                         <Chip label={booking.payment_method?.toUpperCase()} size="small" variant="outlined" sx={{ fontSize: 9, height: 16, fontWeight: 800, borderColor: '#CBD5E1' }} />
                       </TableCell>
-                      <TableCell align="right">
-                         <IconButton size="small" sx={{ bgcolor: '#F1F5F9', '&:hover': { bgcolor: '#E2E8F0' } }} onClick={() => navigate(`../bookings?id=${booking.id}`)}>
-                            <OpenInNew sx={{ fontSize: 18 }} />
-                         </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        <TableCell align="right">
+                           <IconButton size="small" sx={{ bgcolor: '#F1F5F9', '&:hover': { bgcolor: '#E2E8F0' } }} onClick={() => navigate(`../bookings/${booking.booking_code}`)}>
+                              <OpenInNew sx={{ fontSize: 18 }} />
+                           </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                   {(!stats.recentBookings || stats.recentBookings.length === 0) && (
                     <TableRow>
                       <TableCell colSpan={4} align="center" sx={{ py: 10 }}>
@@ -207,6 +220,7 @@ const OwnerDashboard = () => {
                        fullWidth
                        variant="contained" 
                        startIcon={<CheckCircle />}
+                       onClick={() => navigate('../checkin')}
                        sx={{ 
                           py: 1.8, borderRadius: 3, fontWeight: 900, fontSize: '0.85rem',
                           bgcolor: 'white', color: '#0F172A', '&:hover': { bgcolor: '#F1F5F9' }
@@ -218,6 +232,7 @@ const OwnerDashboard = () => {
                        fullWidth
                        variant="outlined" 
                        startIcon={<Person />}
+                       onClick={() => setIsWalkInModalOpen(true)}
                        sx={{ 
                           py: 1.8, borderRadius: 3, fontWeight: 900, fontSize: '0.85rem',
                           borderColor: 'rgba(255,255,255,0.2)', color: 'white',
@@ -252,6 +267,12 @@ const OwnerDashboard = () => {
            </Stack>
         </Grid>
       </Grid>
+      
+      <WalkInBookingModal 
+        open={isWalkInModalOpen} 
+        onClose={() => setIsWalkInModalOpen(false)} 
+        venueId={venueId} 
+      />
     </Box>
   );
 };

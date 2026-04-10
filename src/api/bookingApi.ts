@@ -27,4 +27,7 @@ export const bookingApi = {
 
   confirmPayment: (id: string | number) =>
     api.post(`/bookings/${id}/confirm-payment`),
+  
+  createWalkInBooking: (data: any) => 
+    api.post('/bookings/walk-in', data),
 };
