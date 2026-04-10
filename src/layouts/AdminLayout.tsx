@@ -161,7 +161,7 @@ const AdminLayout = () => {
               Bảng điều khiển Admin 🖥️
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Chào mừng, bạn đang quản trị toàn bộ hệ thống Pickleball Hub.
+              Chào mừng, bạn đang quản trị toàn bộ hệ thống Pickleball Court Marketplace.
             </Typography>
           </Box>
           <Button 

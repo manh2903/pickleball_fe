@@ -59,7 +59,7 @@ const AdminUsers = () => {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, flexWrap: 'wrap', gap: 2 }}>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 800 }}>Quản trị Người dùng Hệ thống 👤</Typography>
-            <Typography variant="body2" color="text.secondary">Quản lý và kiểm soát toàn bộ tài khoản trên nền tảng Pickleball Hub.</Typography>
+            <Typography variant="body2" color="text.secondary">Quản lý và kiểm soát toàn bộ tài khoản trên nền tảng Pickleball Court Marketplace.</Typography>
           </Box>
           <Stack direction="row" spacing={2} sx={{ flexGrow: 1, justifyContent: 'flex-end', minWidth: 300 }}>
             <TextField 

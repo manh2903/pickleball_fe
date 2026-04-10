@@ -302,7 +302,7 @@ const MarketplacePage = () => {
                 variant="h2"
                 sx={{ fontWeight: 900, mb: 2, textAlign: "center", fontFamily: "Times New Roman", fontSize: { xs: "2.5rem", md: "4rem" } }}
               >
-                Sân Chơi Pickleball Hub ✨
+                Sân Chơi Pickleball Court Marketplace ✨
               </Typography>
               <Typography variant="h5" sx={{ textAlign: "center", mb: 8, opacity: 0.9, fontWeight: 400, maxWidth: 700, mx: "auto", lineHeight: 1.6 }}>
                 Tìm kiếm và đặt lịch hàng trăm cụm sân chuẩn quốc tế.

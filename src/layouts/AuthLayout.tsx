@@ -54,7 +54,7 @@ const AuthLayout = ({ children, title, subtitle, bottomText, bottomLink, bottomL
             justifyContent: 'center',
             mb: 2
           }}>
-            <Box component="span" sx={{ mr: 1 }}>🏓</Box> Pickleball Hub
+            <Box component="span" sx={{ mr: 1 }}>🏓</Box> Pickleball Court Marketplace
           </Typography>
           <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, fontFamily: 'Outfit' }}>
             {title}

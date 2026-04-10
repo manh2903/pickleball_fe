@@ -183,7 +183,7 @@ const RegisterOwnerPage = () => {
         </Box>
         
         <Typography variant="caption" align="center" display="block" sx={{ mt: 3, color: 'text.secondary', fontWeight: 500 }}>
-          Bằng việc đăng ký, bạn đồng ý với các Điều khoản và Chính sách của đối tác Pickleball Hub.
+          Bằng việc đăng ký, bạn đồng ý với các Điều khoản và Chính sách của đối tác Pickleball Court Marketplace.
         </Typography>
       </Box>
     </AuthLayout>

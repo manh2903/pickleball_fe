@@ -39,7 +39,7 @@ const Header = () => {
             alignItems: 'center',
             textDecoration: 'none'
           }}>
-            <Box component="span" sx={{ mr: 1, fontSize: '1.5rem' }}>🏓</Box> Pickleball Hub
+            <Box component="span" sx={{ mr: 1, fontSize: '1.5rem' }}>🏓</Box> Pickleball Court Marketplace
           </Typography>
 
           <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1, alignItems: 'center' }}>

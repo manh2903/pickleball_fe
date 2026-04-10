@@ -30,7 +30,7 @@ const Footer = () => {
           {/* Brand Info */}
           <Grid item xs={12} md={4}>
             <Typography variant="h5" sx={{ color: '#0F172A', fontWeight: 900, mb: 3, display: 'flex', alignItems: 'center' }}>
-              <Box component="span" sx={{ mr: 1.5 }}>🏓</Box> Pickleball Hub
+              <Box component="span" sx={{ mr: 1.5 }}>🏓</Box> Pickleball Court Marketplace
             </Typography>
             <Typography variant="body2" sx={{ lineHeight: 1.8, mb: 4, maxWidth: 320 }}>
               Nền tảng đặt sân Pickleball hàng đầu Việt Nam. Chúng tôi kết nối người chơi với những sân đấu chất lượng nhất, mang lại trải nghiệm thể thao chuyên nghiệp và tiện lợi.
@@ -112,7 +112,7 @@ const Footer = () => {
 
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
           <Typography variant="caption" sx={{ color: '#94A3B8' }}>
-            © 2024 Pickleball Hub. Tất cả quyền được bảo lưu.
+            © 2024 Pickleball Court Marketplace. Tất cả quyền được bảo lưu.
           </Typography>
           <Stack direction="row" spacing={3}>
             {['Điều khoản', 'Bảo mật', 'Cookies'].map((item) => (

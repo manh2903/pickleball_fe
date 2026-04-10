@@ -107,7 +107,7 @@ const OwnerVenueAdd = () => {
                   label="Tên địa điểm / Cơ sở" 
                   required 
                   fullWidth 
-                  placeholder="VD: Pickleball Hub - Cơ sở Cầu Giấy"
+                  placeholder="VD: Pickleball Court Marketplace - Cơ sở Cầu Giấy"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   InputProps={{ 
