@@ -11,4 +11,9 @@ export const adminApi = {
 
   getSettings: () => api.get('/admin/settings'),
   updateSetting: (key: string, data: { value: string, description?: string }) => api.put(`/admin/settings/${key}`, data),
+
+  // Promotions (Platform-wide and management)
+  getCoupons: (params?: any) => api.get('/coupons/admin', { params }),
+  createCoupon: (data: any) => api.post('/coupons/admin', data),
+  updateCouponStatus: (id: number | string, status: string) => api.put(`/coupons/admin/${id}/status`, { status }),
 };

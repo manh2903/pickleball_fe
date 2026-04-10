@@ -5,10 +5,10 @@ import {
   Box, Typography, Button, IconButton, Slider,
   CircularProgress, Alert, Stack, Dialog, DialogTitle, 
   DialogContent, DialogActions, TextField, Tooltip,
-  Paper, Divider, RadioGroup, FormControlLabel, Radio
+  Paper, Divider
 } from '@mui/material';
 import { 
-  ArrowBack, CheckCircle, Payments, AccountBalanceWallet,
+  ArrowBack, CheckCircle, Payments,
   CalendarMonth, Info, Person, Phone, Email
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
@@ -38,7 +38,7 @@ const BookingPage = () => {
   const [selectedSlotIds, setSelectedSlotIds] = useState<number[]>([]);
   const [notes, setNotes] = useState('');
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'vnpay' | 'cash'>('vnpay');
+  const paymentMethod = 'vnpay';
 
   // Customer info state
   const [customerInfo, setCustomerInfo] = useState({
@@ -431,46 +431,20 @@ const BookingPage = () => {
                </Box>
 
                <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5 }}>CHỌN PHƯƠNG THỨC THANH TOÁN:</Typography>
-                <RadioGroup 
-                  value={paymentMethod} 
-                  onChange={(e) => setPaymentMethod(e.target.value as any)}
-                  sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}
-                >
-                   <Paper variant="outlined" sx={{ 
-                     p: 2, borderRadius: 1.5, 
-                     border: paymentMethod === 'vnpay' ? '2px solid #0EA5E9' : '1px solid #E2E8F0',
-                     cursor: 'pointer',
-                     bgcolor: paymentMethod === 'vnpay' ? '#F0F9FF' : 'white'
-                   }} onClick={() => setPaymentMethod('vnpay')}>
-                      <FormControlLabel value="vnpay" control={<Radio sx={{ display: 'none' }} />} label={
-                        <Stack direction="row" spacing={1} alignItems="center">
-                           <Payments color="primary" />
-                           <Box>
-                             <Typography variant="body2" sx={{ fontWeight: 800 }}>VNPay Online</Typography>
-                             <Typography variant="caption" color="text.secondary">Visa, Mastercard, QR</Typography>
-                           </Box>
-                        </Stack>
-                      } />
-                   </Paper>
-                   
-                   <Paper variant="outlined" sx={{ 
-                     p: 2, borderRadius: 1.5, 
-                     border: paymentMethod === 'cash' ? '2px solid #0EA5E9' : '1px solid #E2E8F0',
-                     cursor: 'pointer',
-                     bgcolor: paymentMethod === 'cash' ? '#F0F9FF' : 'white'
-                   }} onClick={() => setPaymentMethod('cash')}>
-                      <FormControlLabel value="cash" control={<Radio sx={{ display: 'none' }} />} label={
-                        <Stack direction="row" spacing={1} alignItems="center">
-                           <AccountBalanceWallet color="primary" />
-                           <Box>
-                             <Typography variant="body2" sx={{ fontWeight: 800 }}>Tiền mặt / CK</Typography>
-                             <Typography variant="caption" color="text.secondary">Thanh toán tại quầy</Typography>
-                           </Box>
-                        </Stack>
-                      } />
-                   </Paper>
-                </RadioGroup>
+                 <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5 }}>PHƯƠNG THỨC THANH TOÁN:</Typography>
+                 <Paper variant="outlined" sx={{ 
+                   p: 2, borderRadius: 1.5, 
+                   border: '2px solid #0EA5E9',
+                   bgcolor: '#F0F9FF'
+                 }}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                       <Payments color="primary" />
+                       <Box>
+                         <Typography variant="body2" sx={{ fontWeight: 800 }}>VNPay Online (Visa, Mastercard, QR)</Typography>
+                         <Typography variant="caption" color="text.secondary">Bạn sẽ được chuyển đến trang thanh toán an toàn của VNPay.</Typography>
+                       </Box>
+                    </Stack>
+                 </Paper>
                </Box>
 
                <TextField 

@@ -8,7 +8,7 @@ import {
 import { 
   People, Business, Settings, 
   Menu as MenuIcon, Logout, Security, AccountBalance,
-  BarChart, Storefront
+  BarChart, Storefront, ConfirmationNumber
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
@@ -25,6 +25,7 @@ const AdminLayout = () => {
   const menuItems = [
     { text: 'Tổng quan hệ thống', icon: <BarChart />, path: '/admin/dashboard' },
     { text: 'Phê duyệt Địa điểm', icon: <Business />, path: '/admin/venues' },
+    { text: 'Quản lý Khuyến mãi', icon: <ConfirmationNumber />, path: '/admin/coupons' },
     { text: 'Quản lý Chủ sân', icon: <Security />, path: '/admin/owners' },
     { text: 'Quản lý Người chơi', icon: <People />, path: '/admin/users' },
     { text: 'Tài chính nền tảng', icon: <AccountBalance />, path: '/admin/finance' },

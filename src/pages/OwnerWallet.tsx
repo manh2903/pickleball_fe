@@ -37,9 +37,14 @@ const OwnerWallet = () => {
     mutationFn: (data: any) => withdrawalApi.requestWithdrawal(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-withdrawals'] });
-      // We should also refresh user profile to see updated balance
+      queryClient.invalidateQueries({ queryKey: ['auth-user'] }); // To refresh balance in header
       enqueueSnackbar('Yêu cầu rút tiền đã được gửi. Số dư tạm thời đã bị khấu trừ.', { variant: 'success' });
       setOpenWithdraw(false);
+      // Reset form
+      setAmount('');
+      setBankName('');
+      setBankAcc('');
+      setBankAccName('');
     },
     onError: (err: any) => enqueueSnackbar(err.message || 'Lỗi yêu cầu rút tiền', { variant: 'error' })
   });

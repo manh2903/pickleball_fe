@@ -31,6 +31,7 @@ import OwnerWallet from '@/pages/OwnerWallet';
 import OwnerSettings from './pages/OwnerSettings';
 import OwnerReports from './pages/OwnerReports';
 import OwnerReviewsPage from './pages/owner/OwnerReviewsPage';
+import OwnerCoupons from './pages/OwnerCoupons';
 
 // Admin Sidebar & Dashboards
 import AdminLayout from './layouts/AdminLayout';
@@ -39,6 +40,7 @@ import AdminVenues from './pages/AdminVenues';
 import AdminUsers from './pages/AdminUsers';
 import AdminWithdrawals from '@/pages/AdminWithdrawals';
 import AdminSettings from './pages/admin/AdminSettings';
+import AdminCoupons from './pages/AdminCoupons';
 import { useAuthStore } from './stores/authStore';
 
 // Guard for routes
@@ -84,6 +86,7 @@ function App() {
             <Route path="wallet" element={<OwnerWallet />} />
             <Route path="settings" element={<OwnerSettings />} />
             <Route path="reports" element={<OwnerReports />} />
+            <Route path="coupons" element={<OwnerCoupons />} />
             <Route path="reviews/:venueId" element={<OwnerReviewsPage />} />
           </Route>
 
@@ -95,6 +98,7 @@ function App() {
             <Route path="owners" element={<Box sx={{ py: 10, textAlign: 'center' }}>Owners Management Placeholder</Box>} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="finance" element={<AdminWithdrawals />} />
+            <Route path="coupons" element={<AdminCoupons />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>
 

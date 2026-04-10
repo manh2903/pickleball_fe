@@ -10,7 +10,7 @@ import {
   Dashboard, SportsTennis, EventNote, Settings, 
   Menu as MenuIcon, Storefront, QrCodeScanner, Assessment,
   Badge as BadgeIcon, AddBusiness, ErrorOutline, AccountBalanceWallet,
-  Person, Logout, Star
+  Person, Logout, Star, ConfirmationNumber
 } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -73,6 +73,7 @@ const OwnerLayout = () => {
     { text: 'Quản lý Nhân viên', icon: <BadgeIcon />, path: '/owner/staffs' },
     { text: 'Báo cáo sự cố', icon: <ErrorOutline />, path: '/owner/incidents' },
     { text: 'Doanh thu', icon: <Assessment />, path: '/owner/reports' },
+    { text: 'Khuyến mãi', icon: <ConfirmationNumber />, path: '/owner/coupons' },
     { text: 'Ví tiền & Thanh toán', icon: <AccountBalanceWallet />, path: '/owner/wallet' },
     { text: 'Đánh giá', icon: <Star />, path: `/owner/reviews/${activeVenueId}` },
     { text: 'Thông tin cơ sở', icon: <Settings />, path: '/owner/settings' },
