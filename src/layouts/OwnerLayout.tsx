@@ -12,7 +12,7 @@ import {
   Badge as BadgeIcon, AddBusiness, ErrorOutline, AccountBalanceWallet,
   Person, Logout, Star, ConfirmationNumber, Verified
 } from '@mui/icons-material';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ownerApi } from '@/api/ownerApi';
 import { subscriptionApi } from '@/api/subscriptionApi';
@@ -45,18 +45,26 @@ const OwnerLayout = () => {
     navigate('/login');
   };
 
-  // Multi-venue support
-  const { data: venuesRes } = useQuery({ queryKey: ['owner-venues'], queryFn: () => ownerApi.getVenues() });
+  // 1. Fetch multi-venue data
+  const { data: venuesRes } = useQuery({ 
+    queryKey: ['owner-venues'], 
+    queryFn: () => ownerApi.getVenues() 
+  });
   const venues = venuesRes?.data || [];
   const [activeVenueId, setActiveVenueId] = useState<string | number | ''>('');
 
-  // Fetch current subscription for feature gating
-  const { data: subRes } = useQuery({ 
+  // 2. Fetch current subscription for feature gating
+  const { data: subRes, isLoading: subLoading } = useQuery({ 
     queryKey: ['my-subscription'], 
     queryFn: subscriptionApi.getMySubscription 
   });
-  const currentSub = subRes?.data;
-  const features = currentSub?.option?.features || {};
+
+  // Extract features safely
+  const features = useMemo(() => {
+    // subRes usually has { success, data } based on subscriptionApi.ts current state
+    const subData = subRes?.data || subRes; // Handle both res.data and raw res
+    return subData?.option?.features || {};
+  }, [subRes]);
 
   useEffect(() => {
     if (venues.length > 0 && !activeVenueId) {
@@ -138,7 +146,14 @@ const OwnerLayout = () => {
       <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 2, pb: 4 }}>
         {menuGroups.map((group) => {
           // Filter items based on subscription features
-          const visibleItems = group.items.filter(item => !item.feature || features[item.feature]);
+          const visibleItems = group.items.filter(item => {
+            // If item doesn't require a specific feature, show it
+            if (!item.feature) return true;
+            // If sub is still loading, hide feature-gated items to avoid flicker
+            if (subLoading) return false;
+            // Strict check in features object
+            return !!features[item.feature];
+          });
           
           if (visibleItems.length === 0) return null;
 
@@ -227,10 +242,7 @@ const OwnerLayout = () => {
         <MenuIcon />
       </IconButton>
 
-      <Box
-        component="nav"
-        sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}
-      >
+      <Box component="nav" sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}>
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -256,66 +268,26 @@ const OwnerLayout = () => {
         </Drawer>
       </Box>
 
-      <Box
-        component="main"
-        sx={{ 
-          flexGrow: 1, 
-          display: 'flex', 
-          flexDirection: 'column',
-          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` } 
-        }}
-      >
-        {/* TOP BAR - FIXED AT TOP, NO BORDER RADIUS */}
-        <Box
-          sx={{
-            py: 2, px: { xs: 2, md: 4 },
-            bgcolor: 'white',
-            borderBottom: '1px solid',
-            borderColor: 'divider',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            position: 'sticky',
-            top: 0,
-            zIndex: 100,
-            backdropFilter: 'blur(12px)',
-            background: 'rgba(255, 255, 255, 0.9)',
-          }}
-        >
+      <Box component="main" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', width: { md: `calc(100% - ${DRAWER_WIDTH}px)` } }}>
+        <Box sx={{ py: 2, px: { xs: 2, md: 4 }, bgcolor: 'white', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100, backdropFilter: 'blur(12px)', background: 'rgba(255, 255, 255, 0.9)' }}>
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 900, fontFamily: 'Times New Roman', color: '#1E293B' }}>
                Chào mừng, {user?.name} - Chủ sân! 👋 
             </Typography>
           </Box>
-          
           <Stack direction="row" spacing={2} alignItems="center">
-            <Button 
-              component={Link} to="/" 
-              variant="text" 
-              size="small" 
-              sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'none', display: { xs: 'none', sm: 'block' } }}
-            >
+            <Button component={Link} to="/" variant="text" size="small" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'none', display: { xs: 'none', sm: 'block' } }}>
               Trang Marketplace
             </Button>
             <HeaderNotificationBell />
-            
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-            
             <Box>
               <Tooltip title="Tài khoản">
                 <IconButton onClick={handleOpenUserMenu} sx={{ p: 0.5, border: '2px solid', borderColor: 'primary.light' }}>
                   <Avatar alt={user?.name} src={user?.avatar} sx={{ width: 32, height: 32 }} />
                 </IconButton>
               </Tooltip>
-              <Menu
-                sx={{ mt: '45px' }}
-                anchorEl={anchorEl}
-                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-                keepMounted
-                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                open={Boolean(anchorEl)}
-                onClose={handleCloseUserMenu}
-              >
+              <Menu sx={{ mt: '45px' }} anchorEl={anchorEl} anchorOrigin={{ vertical: 'top', horizontal: 'right' }} keepMounted transformOrigin={{ vertical: 'top', horizontal: 'right' }} open={Boolean(anchorEl)} onClose={handleCloseUserMenu}>
                 <MenuItem disabled>
                   <Box>
                     <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>{user?.name}</Typography>
