@@ -4,11 +4,11 @@ import {
   Table, TableBody, TableCell, TableContainer, 
   TableHead, TableRow, Paper, Chip, TextField,
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Alert, CircularProgress
+  Alert, CircularProgress, Tooltip
 } from '@mui/material';
 import { 
   AccountBalanceWallet, History, CallMade, 
-  LocalAtm, ReceiptLong, Lock, TrendingUp
+  LocalAtm, ReceiptLong, Lock, TrendingUp, InfoOutlined
 } from '@mui/icons-material';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -26,7 +26,8 @@ import { useSnackbar } from 'notistack';
 const OwnerWallet = () => {
   const { user, updateUser } = useAuthStore();
   const subscription = (useAuthStore as any).getState?.()?.subscription;
-  const hasAnalytics = subscription?.option?.features?.analytics === true;
+  // const hasAnalytics = subscription?.option?.features?.analytics === true;
+  const hasAnalytics = true;
   const [openWithdraw, setOpenWithdraw] = useState(false);
   const [amount, setAmount] = useState('');
   const [bankName, setBankName] = useState('');
@@ -74,6 +75,8 @@ const OwnerWallet = () => {
   // Live wallet balance — prefer fresh data from /auth/me, fallback to store
   const freshUser = meData?.data?.user || meData?.data;
   const walletBalance = freshUser?.wallet_balance ?? user?.wallet_balance ?? 0;
+  const pendingBalance = freshUser?.pending_balance ?? 0;
+  const availableBalance = freshUser?.available_balance ?? walletBalance;
 
   // 1. Fetch Withdrawals
   const { data: withdrawalsRes, isLoading: loadingWithdraws } = useQuery({
@@ -147,21 +150,49 @@ const OwnerWallet = () => {
           }}>
             <AccountBalanceWallet sx={{ position: 'absolute', right: -20, bottom: -20, fontSize: 150, opacity: 0.1 }} />
             <Typography variant="subtitle2" sx={{ opacity: 0.8, fontWeight: 700, mb: 1, letterSpacing: 1 }}>SỐ DƯ KHẢ DỤNG</Typography>
-            <Typography variant="h3" sx={{ fontWeight: 900, mb: 3, fontFamily: 'monospace' }}>
-              {new Intl.NumberFormat('vi-VN').format(walletBalance)}đ
+            <Typography variant="h3" sx={{ fontWeight: 900, mb: 1, fontFamily: 'monospace' }}>
+              {new Intl.NumberFormat('vi-VN').format(availableBalance)}đ
             </Typography>
-            <Button 
-              variant="contained" 
-              onClick={() => setOpenWithdraw(true)}
-              sx={{ 
-                bgcolor: 'white', color: '#059669', 
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' },
-                fontWeight: 900, px: 4, borderRadius: 2, textTransform: 'none'
-              }}
-              startIcon={<CallMade />}
+            <Tooltip 
+              title={
+                <Box sx={{ p: 0.5 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 800, mb: 0.5, borderBottom: '1px dashed rgba(255,255,255,0.3)', pb: 0.5 }}>
+                    CÔNG THỨC: Khả dụng = Tổng ví - Tạm giữ
+                  </Typography>
+                  <Typography variant="caption" sx={{ display: 'block' }}>
+                    • Tiền khách thanh toán được cộng ngay vào TỔNG VÍ.<br/>
+                    • Các lịch đặt <b>Sắp diễn ra</b> tính là TIỀN TẠM GIỮ để đảm bảo hoàn tiền nếu khách hủy.<br/>
+                    • Khi khách <b>Đã check-in</b> hoặc sân <b>Hoàn thành</b>, tiền trở thành KHẢ DỤNG và rút được ngay.
+                  </Typography>
+                </Box>
+              }
+              arrow placement="bottom-start"
             >
-              Rút tiền về ngân hàng
-            </Button>
+              <Box sx={{ 
+                mb: 3, display: 'inline-flex', alignItems: 'center', gap: 0.5, cursor: 'help',
+                bgcolor: 'rgba(255,255,255,0.15)', px: 1.5, py: 0.5, borderRadius: 1.5,
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.25)', transition: 'all 0.2s' }
+              }}>
+                <InfoOutlined sx={{ fontSize: 16 }} />
+                <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                  Đang tạm giữ chờ sân hoàn thành: {new Intl.NumberFormat('vi-VN').format(pendingBalance)}đ
+                </Typography>
+              </Box>
+            </Tooltip>
+            <Box>
+              <Button 
+                variant="contained" 
+                onClick={() => setOpenWithdraw(true)}
+                sx={{ 
+                  bgcolor: 'white', color: '#059669', 
+                  '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' },
+                  fontWeight: 900, px: 4, borderRadius: 2, textTransform: 'none'
+                }}
+                startIcon={<CallMade />}
+              >
+                Rút tiền về ngân hàng
+              </Button>
+            </Box>
           </Card>
         </Grid>
         
@@ -363,7 +394,8 @@ const OwnerWallet = () => {
         <DialogTitle sx={{ fontWeight: 900, px: 3, pt: 3 }}>Yêu cầu rút tiền 💸</DialogTitle>
         <DialogContent sx={{ px: 3 }}>
           <Alert severity="info" sx={{ mb: 3, borderRadius: 2, fontWeight: 600 }}>
-            Số dư ví hiện tại: {new Intl.NumberFormat('vi-VN').format(walletBalance)}đ
+            Số dư khả dụng: {new Intl.NumberFormat('vi-VN').format(availableBalance)}đ 
+            {pendingBalance > 0 && ` (Đang tạm giữ ${new Intl.NumberFormat('vi-VN').format(pendingBalance)}đ)`}
           </Alert>
           <Stack spacing={2.5}>
             <TextField 

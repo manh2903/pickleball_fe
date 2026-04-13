@@ -11,6 +11,8 @@ interface User {
   points?: number;
   member_rank?: 'bronze' | 'silver' | 'gold' | 'platinum';
   wallet_balance?: number;
+  available_balance?: number;
+  pending_balance?: number;
   owner_status?: 'pending' | 'approved' | 'suspended';
   venue_id?: number;
 }
