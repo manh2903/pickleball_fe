@@ -127,16 +127,24 @@ const OwnerBookingDetail = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {booking.slots?.map((slot: any, idx: number) => (
-                    <TableRow key={idx} sx={{ '&:last-child td': { border: 0 } }}>
-                      <TableCell sx={{ fontWeight: 600 }}>{format(new Date(slot.date), 'dd/MM/yyyy')}</TableCell>
-                      <TableCell sx={{ fontWeight: 700, color: 'primary.main' }}>{slot.court?.name}</TableCell>
-                      <TableCell>{slot.start_time.slice(0, 5)} - {slot.end_time.slice(0, 5)}</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700 }}>
-                        {parseInt(slot.price).toLocaleString()}đ
+                  {booking.slots?.length > 0 ? (
+                    booking.slots.map((slot: any, idx: number) => (
+                      <TableRow key={idx} sx={{ '&:last-child td': { border: 0 } }}>
+                        <TableCell sx={{ fontWeight: 600 }}>{format(new Date(slot.date), 'dd/MM/yyyy')}</TableCell>
+                        <TableCell sx={{ fontWeight: 700, color: 'primary.main' }}>{slot.court?.name}</TableCell>
+                        <TableCell>{slot.start_time.slice(0, 5)} - {slot.end_time.slice(0, 5)}</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700 }}>
+                          {parseInt(slot.price).toLocaleString()}đ
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} align="center" sx={{ py: 3, fontStyle: 'italic', color: 'text.secondary' }}>
+                        {booking.status === 'cancelled' ? (booking.notes || 'Không có thông tin lịch trình (Đơn đã hủy)') : 'N/A'}
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>

@@ -15,9 +15,10 @@ interface IncidentReportModalProps {
   onClose: () => void;
   venueId: string | number;
   initialCourtId?: string | number;
+  onSuccess?: () => void;
 }
 
-const IncidentReportModal = ({ open, onClose, venueId, initialCourtId }: IncidentReportModalProps) => {
+const IncidentReportModal = ({ open, onClose, venueId, initialCourtId, onSuccess }: IncidentReportModalProps) => {
   const { enqueueSnackbar } = useSnackbar();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -44,6 +45,7 @@ const IncidentReportModal = ({ open, onClose, venueId, initialCourtId }: Inciden
     mutationFn: (data: any) => incidentApi.createIncident(data),
     onSuccess: () => {
       enqueueSnackbar('Đã gửi báo cáo sự cố thành công', { variant: 'info' });
+      if (onSuccess) onSuccess();
       resetAndClose();
     },
     onError: (err: any) => enqueueSnackbar(err.message || 'Lỗi gửi báo cáo', { variant: 'error' })

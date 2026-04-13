@@ -126,9 +126,9 @@ const BookingSuccessPage = () => {
                   <Box>
                     <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block' }}>ĐỊA ĐIỂM</Typography>
                     <Typography variant="body1" sx={{ fontWeight: 800 }}>
-                      {booking.slots?.[0]?.court?.venue?.name || 'Pickleball Center'}
+                      {booking.venue?.name || 'Pickleball Center'}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">{booking.slots?.[0]?.court?.venue?.address}</Typography>
+                    <Typography variant="caption" color="text.secondary">{booking.venue?.address || 'Địa chỉ không khả dụng'}</Typography>
                   </Box>
                 </Box>
 
@@ -138,21 +138,31 @@ const BookingSuccessPage = () => {
                   </Box>
                   <Box sx={{ width: '100%' }}>
                     <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block' }}>DANH SÁCH GIỜ CHƠI</Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 800, mb: 1 }}>
-                       {booking.slots?.[0]?.date ? new Date(booking.slots[0].date).toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
-                    </Typography>
-                    
-                    {groupedSlots.map((group: any, idx: number) => (
-                      <Box key={idx} sx={{ 
-                        mb: idx !== groupedSlots.length - 1 ? 2 : 0,
-                        p: 1.5, borderRadius: 2, bgcolor: '#F8FAFC', borderLeft: '4px solid #0EA5E9'
-                      }}>
-                         <Typography variant="body2" sx={{ fontWeight: 900, color: 'primary.main' }}>{group.name}</Typography>
-                         <Typography variant="body1" sx={{ fontWeight: 800 }}>
-                            {group.slots[0].start_time.slice(0, 5)} - {group.slots[group.slots.length - 1].end_time.slice(0, 5)}
-                         </Typography>
-                      </Box>
-                    ))}
+                    {booking.slots?.length > 0 ? (
+                      <>
+                        <Typography variant="body1" sx={{ fontWeight: 800, mb: 1 }}>
+                           {new Date(booking.slots[0].date).toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                        </Typography>
+                        
+                        {groupedSlots.map((group: any, idx: number) => (
+                          <Box key={idx} sx={{ 
+                            mb: idx !== groupedSlots.length - 1 ? 2 : 0,
+                            p: 1.5, borderRadius: 2, bgcolor: '#F8FAFC', borderLeft: '4px solid #0EA5E9'
+                          }}>
+                             <Typography variant="body2" sx={{ fontWeight: 900, color: 'primary.main' }}>{group.name}</Typography>
+                             <Typography variant="body1" sx={{ fontWeight: 800 }}>
+                                {group.slots[0].start_time.slice(0, 5)} - {group.slots[group.slots.length - 1].end_time.slice(0, 5)}
+                             </Typography>
+                          </Box>
+                        ))}
+                      </>
+                    ) : (
+                      <Alert severity="info" sx={{ borderRadius: 2, bgcolor: '#F8FAFC', py: 0.5 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.secondary', fontStyle: 'italic' }}>
+                           {booking.notes || 'Không tìm thấy thông tin lịch trình (Đơn đã hủy)'}
+                        </Typography>
+                      </Alert>
+                    )}
                   </Box>
                 </Box>
 
@@ -161,12 +171,17 @@ const BookingSuccessPage = () => {
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Box>
                     <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block' }}>TRẠNG THÁI</Typography>
-                    <Chip 
-                      label={booking.payment_status === 'paid' ? 'Đã thanh toán' : 'Chờ thanh toán'} 
-                      color={booking.payment_status === 'paid' ? 'success' : 'warning'} 
-                      size="small" 
-                      sx={{ fontWeight: 900, borderRadius: 1 }}
-                    />
+                    <Stack direction="row" spacing={1}>
+                       <Chip 
+                        label={booking.status === 'cancelled' ? 'Đã hủy đơn' : (booking.payment_status === 'paid' ? 'Đã thanh toán' : 'Chờ thanh toán')} 
+                        color={booking.status === 'cancelled' ? 'error' : (booking.payment_status === 'paid' ? 'success' : 'warning')} 
+                        size="small" 
+                        sx={{ fontWeight: 900, borderRadius: 1 }}
+                      />
+                      {booking.payment_status === 'refunded' && (
+                        <Chip label="Đã hoàn tiền" color="info" size="small" sx={{ fontWeight: 900, borderRadius: 1 }} />
+                      )}
+                    </Stack>
                   </Box>
                   <Box sx={{ textAlign: 'right' }}>
                     <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block' }}>TỔNG TIỀN</Typography>

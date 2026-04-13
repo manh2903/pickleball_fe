@@ -14,11 +14,13 @@ import { useState } from 'react';
 import { incidentApi } from '@/api/incidentApi';
 import { useOutletContext } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
+import IncidentReportModal from '@/components/IncidentReportModal';
 
 const OwnerIncidents = () => {
   const { venueId } = useOutletContext<{ venueId: string | number }>();
   const [selectedIncident, setSelectedIncident] = useState<any>(null);
   const [openDetail, setOpenDetail] = useState(false);
+  const [isNewIncidentOpen, setIsNewIncidentOpen] = useState(false);
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [newStatus, setNewStatus] = useState('');
   const queryClient = useQueryClient();
@@ -74,10 +76,28 @@ const OwnerIncidents = () => {
   return (
     <Box>
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h5" sx={{ fontWeight: 800, fontFamily: 'Times New Roman' }}>
-          Quản lý Sự cố & Bảo trì 🛠️
-        </Typography>
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: 800, fontFamily: 'Times New Roman' }}>
+            Quản lý Sự cố & Bảo trì 🛠️
+          </Typography>
+          <Typography variant="body2" color="text.secondary">Theo dõi và cập nhật trạng thái hạ tầng tại cơ sở.</Typography>
+        </Box>
+        <Button 
+          variant="contained" 
+          startIcon={<ReportProblem />}
+          onClick={() => setIsNewIncidentOpen(true)}
+          sx={{ fontWeight: 800, borderRadius: 2, px: 3 }}
+        >
+          Báo cáo sự cố mới
+        </Button>
       </Box>
+
+      <IncidentReportModal 
+        open={isNewIncidentOpen}
+        onClose={() => setIsNewIncidentOpen(false)}
+        venueId={venueId}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['venue-incidents', venueId] })}
+      />
 
       <TableContainer component={Paper} sx={{ borderRadius: 1.5, overflow: 'hidden' }}>
         <Table>

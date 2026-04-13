@@ -174,9 +174,10 @@ const OwnerDashboard = () => {
                 <TableBody>
                   {stats.recentBookings?.map((booking: any) => {
                     const slots = booking.slots || [];
-                    const uniqueCourts = Array.from(new Set(slots.map((s: any) => s.court?.name))).filter(Boolean);
-                    const startTime = slots.length > 0 ? slots.map((s: any) => s.start_time).sort()[0]?.slice(0, 5) : 'N/A';
-                    const endTime = slots.length > 0 ? slots.map((s: any) => s.end_time).sort().reverse()[0]?.slice(0, 5) : 'N/A';
+                    const hasSlots = slots.length > 0;
+                    const uniqueCourts = hasSlots ? Array.from(new Set(slots.map((s: any) => s.court?.name))).filter(Boolean) : [];
+                    const startTime = hasSlots ? slots.map((s: any) => s.start_time).sort()[0]?.slice(0, 5) : null;
+                    const endTime = hasSlots ? slots.map((s: any) => s.end_time).sort().reverse()[0]?.slice(0, 5) : null;
 
                     return (
                       <TableRow key={booking.id} hover sx={{ '& td': { borderBottom: '1px solid #F8FAFC' } }}>
@@ -192,13 +193,21 @@ const OwnerDashboard = () => {
                           </Stack>
                         </TableCell>
                         <TableCell>
-                          <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                            {uniqueCourts.length > 0 ? uniqueCourts.join(', ') : (booking.court?.name || 'N/A')}
-                          </Typography>
-                          <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#64748B', fontWeight: 600 }}>
-                            <AccessTime sx={{ fontSize: 14 }} /> 
-                            {startTime} - {endTime}
-                          </Typography>
+                          {hasSlots ? (
+                            <>
+                              <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                                {uniqueCourts.join(', ')}
+                              </Typography>
+                              <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#64748B', fontWeight: 600 }}>
+                                <AccessTime sx={{ fontSize: 14 }} /> 
+                                {startTime} - {endTime}
+                              </Typography>
+                            </>
+                          ) : (
+                            <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic', fontWeight: 500, display: 'block', maxWidth: 180 }}>
+                               {booking.status === 'cancelled' ? (booking.notes?.split('. ')[0] || 'Đơn đã hủy') : 'N/A'}
+                            </Typography>
+                          )}
                         </TableCell>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 900, color: 'primary.dark' }}>{new Intl.NumberFormat('vi-VN').format(booking.total_price)}đ</Typography>

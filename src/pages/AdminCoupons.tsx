@@ -15,7 +15,7 @@ import {
   Tooltip,
   Grid,
 } from '@mui/material';
-import { Add, ContentCopy, ToggleOn, ToggleOff, Public, Store } from '@mui/icons-material';
+import { Add, ContentCopy, ToggleOn, ToggleOff } from '@mui/icons-material';
 import { useState } from 'react';
 import { adminApi } from '@/api/adminApi';
 import { useSnackbar } from 'notistack';
@@ -106,53 +106,84 @@ const AdminCoupons = () => {
 
   const columns: Column<any>[] = [
     {
-      key: 'scope',
-      label: 'Phạm vi',
-      render: (c) => (
-        <Stack direction="row" spacing={1} alignItems="center">
-          {c.type === 'platform' ? (
-            <Chip
-              icon={<Public sx={{ fontSize: '1rem !important' }} />}
-              label="Hệ thống"
-              size="small"
-              color="primary"
-              variant="outlined"
-              sx={{ fontWeight: 800 }}
-            />
-          ) : (
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Store sx={{ fontSize: '1rem', mr: 0.5, color: 'text.secondary' }} />
-              <Typography variant="caption" sx={{ fontWeight: 700 }}>
-                {c.venue?.name || 'Cơ sở'}
-              </Typography>
-            </Box>
-          )}
-        </Stack>
-      ),
-    },
-    {
       key: 'code',
       label: 'Mã giảm giá',
       render: (c) => (
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Typography variant="body2" sx={{ fontWeight: 900, color: 'primary.main', textDecoration: 'underline' }}>
-            {c.code}
-          </Typography>
-          <IconButton size="small" onClick={() => copyCode(c.code)}>
-            <ContentCopy sx={{ fontSize: '0.8rem' }} />
-          </IconButton>
-        </Stack>
+        <Box>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+            <Typography variant="body2" sx={{ fontWeight: 900, color: 'primary.main' }}>
+              {c.code}
+            </Typography>
+            <IconButton size="small" onClick={() => copyCode(c.code)}>
+              <ContentCopy sx={{ fontSize: '0.8rem' }} />
+            </IconButton>
+          </Stack>
+          {c.type === 'platform' ? (
+            <Chip label="Hệ thống" size="small" color="primary" variant="outlined" sx={{ fontWeight: 800, height: 18, fontSize: '0.6rem' }} />
+          ) : (
+            <Chip label={c.venue?.name || 'Cơ sở'} size="small" variant="outlined" sx={{ fontWeight: 700, height: 18, fontSize: '0.6rem' }} />
+          )}
+        </Box>
       ),
     },
     {
       key: 'discount',
-      label: 'Giá trị',
+      label: 'Giá trị giảm',
       render: (c) => (
-        <Typography sx={{ fontWeight: 800 }}>
-          {c.discount_type === 'percentage'
-            ? `${c.discount_value}%`
-            : `${new Intl.NumberFormat('vi-VN').format(c.discount_value)}đ`}
-        </Typography>
+        <Box>
+          <Typography sx={{ fontWeight: 800, color: 'error.main' }}>
+            {c.discount_type === 'percentage'
+              ? `${c.discount_value}%`
+              : `${new Intl.NumberFormat('vi-VN').format(c.discount_value)}đ`}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+            {c.discount_type === 'percentage' ? 'Giảm theo %' : 'Giảm trực tiếp'}
+          </Typography>
+        </Box>
+      ),
+    },
+    {
+      key: 'requirements',
+      label: 'Điều kiện',
+      render: (c) => (
+        <Box>
+          <Typography variant="caption" sx={{ display: 'block', fontWeight: 700 }}>
+            Đơn từ: {new Intl.NumberFormat('vi-VN').format(c.min_booking_amount)}đ
+          </Typography>
+          {c.max_discount_amount && (
+            <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 600 }}>
+              Giảm tối đa: {new Intl.NumberFormat('vi-VN').format(c.max_discount_amount)}đ
+            </Typography>
+          )}
+        </Box>
+      ),
+    },
+    {
+      key: 'usage',
+      label: 'Sử dụng',
+      render: (c) => (
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 800 }}>
+            {c.used_count} / {c.usage_limit || '∞'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Lượt đã dùng
+          </Typography>
+        </Box>
+      ),
+    },
+    {
+      key: 'duration',
+      label: 'Thời gian',
+      render: (c) => (
+        <Box>
+          <Typography variant="caption" sx={{ display: 'block', fontWeight: 700 }}>
+            Từ: {new Date(c.start_date).toLocaleDateString('vi-VN')}
+          </Typography>
+          <Typography variant="caption" sx={{ display: 'block', color: 'error.main', fontWeight: 700 }}>
+            Đến: {new Date(c.end_date).toLocaleDateString('vi-VN')}
+          </Typography>
+        </Box>
       ),
     },
     {
@@ -174,19 +205,19 @@ const AdminCoupons = () => {
       label: 'Trạng thái',
       render: (c) => (
         <Chip
-          label={c.status === 'active' ? 'ĐANG HOẠT ĐỘNG' : 'TẠM DỪNG'}
+          label={c.status === 'active' ? 'HOẠT ĐỘNG' : 'TẠM DỪNG'}
           color={c.status === 'active' ? 'success' : 'default'}
           size="small"
-          sx={{ fontWeight: 800, fontSize: '0.65rem' }}
+          sx={{ fontWeight: 800, fontSize: '0.6rem' }}
         />
       ),
     },
     {
       key: 'actions',
-      label: 'Quản lý',
+      label: 'Bật/Tắt',
       align: 'right',
       render: (c) => (
-        <Tooltip title={c.status === 'active' ? 'Vô hiệu hóa' : 'Kích hoạt'}>
+        <Tooltip title={c.status === 'active' ? 'Vô hiệu hóa mã' : 'Kích hoạt mã'}>
           <IconButton
             size="small"
             color={c.status === 'active' ? 'success' : 'default'}
@@ -197,7 +228,7 @@ const AdminCoupons = () => {
               })
             }
           >
-            {c.status === 'active' ? <ToggleOn /> : <ToggleOff />}
+            {c.status === 'active' ? <ToggleOn fontSize="large" /> : <ToggleOff fontSize="large" />}
           </IconButton>
         </Tooltip>
       ),

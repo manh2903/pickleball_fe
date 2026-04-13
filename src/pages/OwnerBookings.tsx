@@ -76,7 +76,15 @@ const OwnerBookings = () => {
       label: 'SÂN / GIỜ',
       render: (row) => {
         const slots = row.slots || [];
-        if (slots.length === 0) return <Typography variant="caption" color="text.secondary">N/A</Typography>;
+        if (slots.length === 0) {
+          return (
+            <Box>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic', fontWeight: 500, display: 'block', maxWidth: 200 }}>
+                {row.status === 'cancelled' && row.notes ? row.notes : 'N/A'}
+              </Typography>
+            </Box>
+          );
+        }
 
         const uniqueCourts = Array.from(new Set(slots.map((s: any) => s.court?.name))).filter(Boolean);
         const bookingDate = slots[0]?.date ? new Date(slots[0].date).toLocaleDateString('vi-VN') : new Date(row.createdAt).toLocaleDateString('vi-VN');
