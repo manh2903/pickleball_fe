@@ -3,6 +3,7 @@ import api from '@/api';
 export const ownerApi = {
   // Statistics
   getStats: (venueId?: string | number) => api.get('/owner/stats', { params: { venue_id: venueId } }),
+  getAnalytics: (venueId?: string | number) => api.get('/owner/analytics', { params: { venue_id: venueId } }),
   
   // Venue Management
   getVenues: () => api.get('/owner/venues'),

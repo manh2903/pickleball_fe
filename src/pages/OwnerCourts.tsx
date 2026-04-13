@@ -62,6 +62,9 @@ const OwnerCourts = () => {
       queryClient.invalidateQueries({ queryKey: ['owner-courts'] });
       handleClose();
       enqueueSnackbar('Thêm sân con mới thành công!', { variant: 'success' });
+    },
+    onError: (error: any) => {
+      enqueueSnackbar(error.message || 'Thêm sân con thất bại!', { variant: 'error' });
     }
   });
 
@@ -71,6 +74,9 @@ const OwnerCourts = () => {
       queryClient.invalidateQueries({ queryKey: ['owner-courts'] });
       handleClose();
       enqueueSnackbar('Cập nhật cấu hình sân thành công!', { variant: 'success' });
+    },
+    onError: (error: any) => {
+      enqueueSnackbar(error.message || 'Cập nhật cấu hình sân thất bại!', { variant: 'error' });
     }
   });
 
@@ -79,6 +85,9 @@ const OwnerCourts = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['owner-courts'] });
       enqueueSnackbar('Đã thay đổi trạng thái hoạt động của sân', { variant: 'info' });
+    },
+    onError: (error: any) => {
+      enqueueSnackbar(error.message || 'Thay đổi trạng thái hoạt động của sân thất bại!', { variant: 'error' });
     }
   });
 

@@ -9,16 +9,25 @@ import {
 import { 
   AccountBalanceWallet, History, CallMade, 
   LocalAtm, ReceiptLong, Payment as PaymentIcon,
-  Storefront
+  Storefront, Lock, TrendingUp
 } from '@mui/icons-material';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip as ReTooltip, ResponsiveContainer, Cell
+} from 'recharts';
 import { useState } from 'react';
 import { withdrawalApi } from '@/api/withdrawalApi';
 import { paymentApi } from '@/api/paymentApi';
+import { ownerApi } from '@/api/ownerApi';
 import { useAuthStore } from '@/stores/authStore';
 import { useSnackbar } from 'notistack';
 
 const OwnerWallet = () => {
   const { user } = useAuthStore();
+  console.log("user", user)
+  const subscription = (useAuthStore as any).getState?.()?.subscription;
+  // const hasAnalytics = subscription?.option?.features?.analytics === true;
+  const hasAnalytics = true;
   const [openWithdraw, setOpenWithdraw] = useState(false);
   const [amount, setAmount] = useState('');
   const [bankName, setBankName] = useState('');
@@ -42,6 +51,15 @@ const OwnerWallet = () => {
   });
   const payments = paymentsRes || [];
 
+  // 3. Analytics (gated — Basic/Premium only)
+  const { data: analyticsRes } = useQuery({
+    queryKey: ['owner-analytics-wallet'],
+    queryFn: () => ownerApi.getAnalytics(),
+    enabled: hasAnalytics,
+  });
+  const analytics = analyticsRes?.data;
+  const last6Months = analytics?.monthly?.slice(-6) || [];
+
   const withdrawMutation = useMutation({
     mutationFn: (data: any) => withdrawalApi.requestWithdrawal(data),
     onSuccess: () => {
@@ -64,24 +82,24 @@ const OwnerWallet = () => {
   };
 
   const statusColors: any = {
-    pending: 'warning',
-    processing: 'info',
-    completed: 'success',
-    paid: 'success',
-    failed: 'error',
-    rejected: 'error',
-    cancelled: 'default'
+    pending: 'warning', processing: 'info', completed: 'success',
+    paid: 'success', failed: 'error', rejected: 'error', cancelled: 'default'
   };
 
   if (loadingWithdraws || loadingPayments) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}><CircularProgress /></Box>;
 
+  console.log("user", user)
   return (
     <Box>
-      <Typography variant="h5" sx={{ fontWeight: 950, mb: 4, letterSpacing: -0.5 }}>
+      <Typography variant="h5" sx={{ fontWeight: 800, mb: 1, fontFamily: 'Times New Roman' }}>
         Tài chính & Giao dịch 💸
       </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+        Quản lý số dư ví, lịch sử thu chi và rút tiền về ngân hàng.
+      </Typography>
 
-      <Grid container spacing={3} sx={{ mb: 6 }}>
+      {/* KPI Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} md={5}>
           <Card sx={{ 
             p: 4, borderRadius: 3, 
@@ -115,14 +133,14 @@ const OwnerWallet = () => {
               <Grid item xs={6}>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, letterSpacing: 1 }}>TỔNG DOANH THU</Typography>
                 <Typography variant="h5" sx={{ fontWeight: 900, mt: 1, color: '#0F172A' }}>
-                  {new Intl.NumberFormat('vi-VN').format(user?.wallet_balance || 0)}đ 
-                  <Typography variant="caption" sx={{ display: 'block', fontWeight: 500, color: 'text.secondary' }}>(Bao gồm cả số dư hiện tại)</Typography>
+                  {new Intl.NumberFormat('vi-VN').format(hasAnalytics ? (analytics?.totalRevenue || 0) : (user?.wallet_balance || 0))}đ
+                  <Typography variant="caption" sx={{ display: 'block', fontWeight: 500, color: 'text.secondary' }}>Tổng đặt sân đã thanh toán</Typography>
                 </Typography>
               </Grid>
               <Grid item xs={6}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, letterSpacing: 1 }}>GIAO DỊCH CHỜ</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, letterSpacing: 1 }}>ĐƠN CHỜ XỬ LÝ</Typography>
                 <Typography variant="h5" sx={{ fontWeight: 900, mt: 1, color: '#F59E0B' }}>
-                   {new Intl.NumberFormat('vi-VN').format(payments.filter((p:any) => p.status === 'pending').length)}
+                   {payments.filter((p:any) => p.status === 'pending').length}
                    <Typography variant="caption" sx={{ display: 'block', fontWeight: 500, color: 'text.secondary' }}>Yêu cầu chưa hoàn tất</Typography>
                 </Typography>
               </Grid>
@@ -131,8 +149,79 @@ const OwnerWallet = () => {
         </Grid>
       </Grid>
 
+      {/* Revenue Analytics Chart */}
+      <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, mb: 4, border: '1px solid #E2E8F0' }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <TrendingUp sx={{ color: '#10B981' }} />
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 900 }}>Doanh thu 6 tháng</Typography>
+              {!hasAnalytics && (
+                <Typography variant="caption" sx={{ color: '#92400E', fontWeight: 700 }}>
+                  🔒 Tính năng dành cho gói Basic/Premium
+                </Typography>
+              )}
+            </Box>
+          </Stack>
+          {hasAnalytics && last6Months.length > 0 && (
+            <Stack direction="row" spacing={3}>
+              <Box sx={{ textAlign: 'right' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block' }}>TỔNG 6 THÁNG</Typography>
+                <Typography variant="body1" sx={{ fontWeight: 900, color: '#10B981' }}>
+                  {new Intl.NumberFormat('vi-VN').format(last6Months.reduce((s: number, m: any) => s + m.revenue, 0))}đ
+                </Typography>
+              </Box>
+              <Box sx={{ textAlign: 'right' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block' }}>SỐ ĐẶT</Typography>
+                <Typography variant="body1" sx={{ fontWeight: 900 }}>
+                  {last6Months.reduce((s: number, m: any) => s + m.count, 0)}
+                </Typography>
+              </Box>
+            </Stack>
+          )}
+        </Stack>
+
+        {hasAnalytics ? (
+          last6Months.length > 0 ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={last6Months} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fontWeight: 600 }} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v/1000000).toFixed(1)}M`} width={45} />
+                <ReTooltip
+                  formatter={(val: any) => [new Intl.NumberFormat('vi-VN').format(val) + 'đ', 'Doanh thu']}
+                  contentStyle={{ borderRadius: 8, fontSize: 12, fontWeight: 700, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: 'none' }}
+                />
+                <Bar dataKey="revenue" radius={[6, 6, 0, 0]} maxBarSize={60}>
+                  {last6Months.map((_: any, i: number) => (
+                    <Cell key={i} fill={i === last6Months.length - 1 ? '#10B981' : '#A7F3D0'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 6 }}>
+              <Typography variant="body2" color="text.secondary">Chưa có dữ liệu doanh thu trong 6 tháng qua.</Typography>
+            </Box>
+          )
+        ) : (
+          <Box sx={{ py: 6, textAlign: 'center', bgcolor: '#FAFAFA', borderRadius: 2, border: '1px dashed #E2E8F0' }}>
+            <Lock sx={{ fontSize: 40, color: '#CBD5E1', mb: 1 }} />
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.secondary', mb: 0.5 }}>Biểu đồ doanh thu theo tháng</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+              Nâng cấp lên gói Basic hoặc Premium để xem phân tích doanh thu, xu hướng đặt sân và các chỉ số kinh doanh chi tiết.
+            </Typography>
+            <Button variant="contained" size="small" href="/owner/subscription" 
+              sx={{ fontWeight: 800, bgcolor: '#10B981', '&:hover': { bgcolor: '#059669' }, borderRadius: 2 }}>
+              Nâng cấp gói →
+            </Button>
+          </Box>
+        )}
+      </Paper>
+
+      {/* Tables */}
       <Grid container spacing={4}>
-        {/* Left Column: Payment History (Subscriptions) */}
+        {/* Left Column: Payment History */}
         <Grid item xs={12} lg={7}>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
             <ReceiptLong sx={{ color: 'primary.main' }} />
@@ -157,7 +246,7 @@ const OwnerWallet = () => {
                     </TableCell>
                     <TableCell sx={{ fontWeight: 800 }}>{new Intl.NumberFormat('vi-VN').format(p.amount)}đ</TableCell>
                     <TableCell sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
-                      {p.createdAt || p.created_at}
+                      {new Date(p.createdAt || p.created_at).toLocaleDateString('vi-VN')}
                     </TableCell>
                     <TableCell>
                       <Chip 

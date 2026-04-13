@@ -12,10 +12,13 @@ import {
   AccountBalanceWallet, PendingActions,
   ArrowForward, Visibility, PointOfSale,
   AccessTime, CheckCircle, Person,
-  OpenInNew, QrCode, ErrorOutline
+  OpenInNew, QrCode, ErrorOutline, Lock
 } from '@mui/icons-material';
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, 
+  Tooltip as ReTooltip, ResponsiveContainer
+} from 'recharts';
 import { ownerApi } from '@/api/ownerApi';
-
 import WalkInBookingModal from '@/components/WalkInBookingModal';
 import CheckInModal from '@/components/CheckInModal';
 import IncidentReportModal from '@/components/IncidentReportModal';
@@ -48,21 +51,29 @@ const StatCard = ({ title, value, icon, color, subtitle, trend }: any) => (
 );
 
 const OwnerDashboard = () => {
-  const { venueId }: any = useOutletContext();
+  const { venueId, subscription }: any = useOutletContext();
   const navigate = useNavigate();
   const theme = useTheme();
+  const hasAnalytics = subscription?.option?.features?.analytics === true;
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['owner-stats', venueId],
     queryFn: () => ownerApi.getStats(venueId),
     enabled: !!venueId,
-    refetchInterval: 60000 // Refresh every 1min
+    refetchInterval: 60000
+  });
+
+  const { data: analyticsRes } = useQuery({
+    queryKey: ['owner-analytics', venueId],
+    queryFn: () => ownerApi.getAnalytics(venueId),
+    enabled: !!venueId && hasAnalytics,
   });
 
   const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);
   const [isCheckInOpen, setIsCheckInOpen] = useState(false);
   const [isIncidentOpen, setIsIncidentOpen] = useState(false);
   const stats = data?.data;
+  const analytics = analyticsRes?.data;
 
   if (isLoading) return <Box sx={{ py: 10, textAlign: 'center' }}><CircularProgress thickness={5} size={60} /></Box>;
   if (error) return <Alert severity="error" sx={{ borderRadius: 2 }}>Lỗi hệ thống khi tải báo cáo đồng bộ.</Alert>;
@@ -260,25 +271,68 @@ const OwnerDashboard = () => {
                  </Stack>
               </Card>
 
-              {/* Mini Trend Summary */}
-              <Paper variant="outlined" sx={{ p: 4, borderRadius: 4, border: '1px solid #F1F5F9' }}>
-                 <Typography variant="subtitle2" sx={{ fontWeight: 950, color: '#64748B', letterSpacing: 1, mb: 4 }}>BIẾN ĐỘNG DOANH THU 7 NGÀY</Typography>
-                 <Stack spacing={3}>
-                    {stats.revenueByDay?.slice(0, 3).map((r: any) => (
-                      <Box key={r.date}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
-                           <Typography variant="body2" sx={{ fontWeight: 800 }}>{new Date(r.date).toLocaleDateString('vi-VN', { weekday: 'short', day: 'numeric' })}</Typography>
-                           <Typography variant="body2" sx={{ fontWeight: 950, color: 'primary.main' }}>{new Intl.NumberFormat('vi-VN').format(r.revenue)}đ</Typography>
-                        </Box>
-                        <Box sx={{ height: 10, bgcolor: '#F1F5F9', borderRadius: 5, overflow: 'hidden' }}>
-                           <Box sx={{ width: `${Math.min(100, (r.revenue / 2000000) * 100)}%`, height: '100%', bgcolor: '#10B981', borderRadius: 5 }} />
-                        </Box>
-                      </Box>
-                    ))}
-                    {(!stats.revenueByDay || stats.revenueByDay.length === 0) && (
-                       <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>Đang chờ dữ liệu biểu đồ...</Typography>
-                    )}
+              {/* Revenue Trend Chart */}
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: 4, border: '1px solid #F1F5F9' }}>
+                 <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+                   <Typography variant="subtitle2" sx={{ fontWeight: 950, color: '#64748B', letterSpacing: 1 }}>DOANH THU 30 NGÀY</Typography>
+                   {!hasAnalytics && (
+                     <Chip icon={<Lock sx={{ fontSize: '0.8rem !important' }} />} label="Basic/Premium" size="small" sx={{ fontWeight: 800, fontSize: '0.6rem', bgcolor: '#FEF9C3', color: '#92400E', height: 22 }} />
+                   )}
                  </Stack>
+
+                 {hasAnalytics && analytics?.daily ? (
+                   <ResponsiveContainer width="100%" height={160}>
+                     <AreaChart data={analytics.daily} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+                       <defs>
+                         <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                           <stop offset="5%" stopColor="#10B981" stopOpacity={0.3}/>
+                           <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                         </linearGradient>
+                       </defs>
+                       <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                       <XAxis 
+                         dataKey="date" tick={{ fontSize: 10 }}
+                         tickFormatter={(v) => new Date(v).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}
+                         interval={6}
+                       />
+                       <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} width={38} />
+                       <ReTooltip
+                         formatter={(val: any) => [`${new Intl.NumberFormat('vi-VN').format(val)}đ`, 'Doanh thu']}
+                         labelFormatter={(l) => new Date(l).toLocaleDateString('vi-VN')}
+                         contentStyle={{ borderRadius: 8, fontSize: 12, fontWeight: 700 }}
+                       />
+                       <Area type="monotone" dataKey="revenue" stroke="#10B981" strokeWidth={2} fill="url(#colorRev)" />
+                     </AreaChart>
+                   </ResponsiveContainer>
+                 ) : hasAnalytics ? (
+                   <Box sx={{ textAlign: 'center', py: 4 }}><CircularProgress size={24} /></Box>
+                 ) : (
+                   <Box sx={{ py: 5, px: 2, textAlign: 'center', bgcolor: '#FAFAFA', borderRadius: 2, border: '1px dashed #E2E8F0' }}>
+                     <Lock sx={{ fontSize: 32, color: '#CBD5E1', mb: 1 }} />
+                     <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', color: 'text.secondary' }}>Biểu đồ doanh thu chi tiết dành cho gói Basic trở lên</Typography>
+                     <Button size="small" onClick={() => navigate('../subscription')} sx={{ mt: 1, fontWeight: 800 }}>Nâng cấp ngay →</Button>
+                   </Box>
+                 )}
+
+                 {/* Mini bars fallback — always visible */}
+                 {!hasAnalytics && (
+                   <Stack spacing={2} sx={{ mt: 1 }}>
+                     {stats.revenueByDay?.slice(0, 3).map((r: any) => (
+                       <Box key={r.date}>
+                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 800, fontSize: '0.75rem' }}>{new Date(r.date).toLocaleDateString('vi-VN', { weekday: 'short', day: 'numeric' })}</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 950, color: 'primary.main', fontSize: '0.75rem' }}>{new Intl.NumberFormat('vi-VN').format(r.revenue)}đ</Typography>
+                         </Box>
+                         <Box sx={{ height: 6, bgcolor: '#F1F5F9', borderRadius: 5, overflow: 'hidden' }}>
+                            <Box sx={{ width: `${Math.min(100, (r.revenue / 2000000) * 100)}%`, height: '100%', bgcolor: '#10B981', borderRadius: 5 }} />
+                         </Box>
+                       </Box>
+                     ))}
+                     {(!stats.revenueByDay || stats.revenueByDay.length === 0) && (
+                        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>Đang chờ dữ liệu...</Typography>
+                     )}
+                   </Stack>
+                 )}
               </Paper>
            </Stack>
         </Grid>

@@ -104,7 +104,7 @@ const OwnerLayout = () => {
       title: 'KHÁCH HÀNG',
       items: [
         { text: 'Khuyến mãi', icon: <ConfirmationNumber />, path: '/owner/coupons', feature: 'custom_coupons' },
-        { text: 'Đánh giá', icon: <Star />, path: `/owner/reviews/${activeVenueId}`, feature: 'analytics' },
+        { text: 'Đánh giá', icon: <Star />, path: `/owner/reviews/${activeVenueId}`},
       ]
     },
     {
