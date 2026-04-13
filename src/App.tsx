@@ -29,6 +29,7 @@ import OwnerVenueAdd from './pages/OwnerVenueAdd';
 import OwnerIncidents from './pages/OwnerIncidents';
 import OwnerWallet from '@/pages/OwnerWallet';
 import OwnerSettings from './pages/OwnerSettings';
+import OwnerSubscription from './pages/OwnerSubscription';
 import OwnerReports from './pages/OwnerReports';
 import OwnerReviewsPage from './pages/owner/OwnerReviewsPage';
 import OwnerCoupons from './pages/OwnerCoupons';
@@ -83,6 +84,7 @@ function App() {
             <Route path="venues" element={<OwnerVenues />} />
             <Route path="venues/add" element={<OwnerVenueAdd />} />
             <Route path="incidents" element={<OwnerIncidents />} />
+            <Route path="subscription" element={<OwnerSubscription />} />
             <Route path="wallet" element={<OwnerWallet />} />
             <Route path="settings" element={<OwnerSettings />} />
             <Route path="reports" element={<OwnerReports />} />

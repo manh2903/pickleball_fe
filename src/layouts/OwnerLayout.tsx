@@ -8,9 +8,9 @@ import {
 } from '@mui/material';
 import { 
   Dashboard, SportsTennis, EventNote, Settings, 
-  Menu as MenuIcon, QrCodeScanner, Assessment,
+  Menu as MenuIcon,
   Badge as BadgeIcon, AddBusiness, ErrorOutline, AccountBalanceWallet,
-  Person, Logout, Star, ConfirmationNumber
+  Person, Logout, Star, ConfirmationNumber, Verified
 } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -66,100 +66,120 @@ const OwnerLayout = () => {
     window.location.reload(); 
   };
 
-  const menuItems = [
-    { text: 'Tổng quan', icon: <Dashboard />, path: '/owner/dashboard' },
-    { text: 'Lịch đặt sân', icon: <EventNote />, path: '/owner/bookings' },
-    { text: 'Danh sách sân', icon: <SportsTennis />, path: '/owner/courts' },
-    { text: 'Quản lý Nhân viên', icon: <BadgeIcon />, path: '/owner/staffs' },
-    { text: 'Báo cáo sự cố', icon: <ErrorOutline />, path: '/owner/incidents' },
-    { text: 'Doanh thu', icon: <Assessment />, path: '/owner/reports' },
-    { text: 'Khuyến mãi', icon: <ConfirmationNumber />, path: '/owner/coupons' },
-    { text: 'Ví tiền & Thanh toán', icon: <AccountBalanceWallet />, path: '/owner/wallet' },
-    { text: 'Đánh giá', icon: <Star />, path: `/owner/reviews/${activeVenueId}` },
-    { text: 'Thông tin cơ sở hiện tại', icon: <Settings />, path: '/owner/settings' },
-    { text: 'Danh sách cơ sở', icon: <SportsTennis />, path: '/owner/venues' },
+  const menuGroups = [
+    {
+      title: 'VẬN HÀNH',
+      items: [
+        { text: 'Tổng quan', icon: <Dashboard />, path: '/owner/dashboard' },
+        { text: 'Lịch đặt sân', icon: <EventNote />, path: '/owner/bookings' },
+        { text: 'Quản lý sân', icon: <SportsTennis />, path: '/owner/courts' },
+        { text: 'Nhân viên', icon: <BadgeIcon />, path: '/owner/staffs' },
+      ]
+    },
+    {
+      title: 'TÀI CHÍNH',
+      items: [
+        { text: 'Ví & Doanh thu', icon: <AccountBalanceWallet />, path: '/owner/wallet' },
+        { text: 'Gói dịch vụ', icon: <Verified />, path: '/owner/subscription' },
+      ]
+    },
+    {
+      title: 'KHÁCH HÀNG',
+      items: [
+        { text: 'Khuyến mãi', icon: <ConfirmationNumber />, path: '/owner/coupons' },
+        { text: 'Đánh giá', icon: <Star />, path: `/owner/reviews/${activeVenueId}` },
+      ]
+    },
+    {
+      title: 'HỆ THỐNG',
+      items: [
+        { text: 'Báo cáo sự cố', icon: <ErrorOutline />, path: '/owner/incidents' },
+        { text: 'Cài đặt cơ sở', icon: <Settings />, path: '/owner/settings' },
+        { text: 'Quản lý cơ sở', icon: <AddBusiness />, path: '/owner/venues' },
+      ]
+    }
   ];
 
   const drawer = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Toolbar sx={{ px: 3, py: 4 }}>
-        <Typography variant="h6" sx={{ fontWeight: 900, color: 'primary.main', display: 'flex', alignItems: 'center', fontFamily: 'Times New Roman' }}>
-          🏓 OWNER PANEL
+      <Toolbar sx={{ px: 3, pt: 3, pb: 2 }}>
+        <Typography variant="h6" sx={{ fontWeight: 950, color: 'primary.main', display: 'flex', alignItems: 'center', fontFamily: 'Times New Roman', letterSpacing: -1 }}>
+          🏓 PICKLEBALL
         </Typography>
       </Toolbar>
       
-      {/* Venue Switcher (Tier 1 to Tier 2) */}
+      {/* Venue Switcher */}
       <Box sx={{ px: 2, mb: 3 }}>
         <FormControl fullWidth size="small">
-          <InputLabel>Chọn cơ sở quản lý</InputLabel>
+          <InputLabel sx={{ fontWeight: 600, fontSize: '0.85rem' }}>ĐANG QUẢN LÝ</InputLabel>
           <Select
             value={activeVenueId}
-            label="Chọn cơ sở quản lý"
+            label="ĐANG QUẢN LÝ"
             onChange={(e) => handleVenueChange(e.target.value)}
-            sx={{ borderRadius: 1.5, bgcolor: 'white' }}
+            sx={{ borderRadius: 2, bgcolor: '#F8FAFC', fontWeight: 700 }}
           >
             {venues.map((v: any) => (
-              <MenuItem key={v.id} value={v.id}>{v.name}</MenuItem>
+              <MenuItem key={v.id} value={v.id} sx={{ fontWeight: 600 }}>{v.name}</MenuItem>
             ))}
             {venues.length === 0 && <MenuItem disabled>Không có cơ sở nào</MenuItem>}
           </Select>
         </FormControl>
       </Box>
 
-      <Box sx={{ px: 2, mb: 1 }}>
-        <Button 
-          fullWidth 
-          variant="outlined" 
-          startIcon={<AddBusiness />} 
-          component={Link} 
-          to="/owner/venues/add"
-          sx={{ borderRadius: 1.5, py: 1, borderStyle: 'dashed' }}
-        >
-          Thêm cơ sở mới
-        </Button>
+      <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 2, pb: 4 }}>
+        {menuGroups.map((group) => (
+          <Box key={group.title} sx={{ mb: 3 }}>
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                px: 2, mb: 1, display: 'block', fontWeight: 900, 
+                color: 'text.disabled', letterSpacing: 1.5 
+              }}
+            >
+              {group.title}
+            </Typography>
+            <List disablePadding>
+              {group.items.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+                    <ListItemButton 
+                      component={Link} 
+                      to={item.path}
+                      selected={isActive}
+                      onClick={() => isMobile && setMobileOpen(false)}
+                      sx={{
+                        borderRadius: 2,
+                        py: 1.2,
+                        bgcolor: isActive ? 'primary.main' : 'transparent',
+                        color: isActive ? 'white' : 'text.secondary',
+                        '&.Mui-selected': {
+                          bgcolor: 'primary.main',
+                          color: 'white',
+                          boxShadow: '0 10px 15px -3px rgba(34,197,94,0.25)',
+                          '&:hover': { bgcolor: 'primary.dark' },
+                          '& .MuiListItemIcon-root': { color: 'white' }
+                        },
+                        '&:hover': {
+                          bgcolor: isActive ? 'primary.dark' : 'rgba(0,0,0,0.03)',
+                        }
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 40, color: isActive ? 'white' : 'inherit' }}>
+                        {item.icon}
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={item.text} 
+                        primaryTypographyProps={{ fontWeight: isActive ? 900 : 600, fontSize: '0.88rem' }} 
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                );
+              })}
+            </List>
+          </Box>
+        ))}
       </Box>
-
-      <Divider sx={{ mb: 2, mx: 2, opacity: 0.5 }} />
-      
-      <List sx={{ px: 2 }}>
-        {menuItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          return (
-            <ListItem key={item.text} disablePadding sx={{ mb: 1 }}>
-              <ListItemButton 
-                component={Link} 
-                to={item.path}
-                selected={isActive}
-                onClick={() => isMobile && setMobileOpen(false)}
-                sx={{
-                  borderRadius: 1.5,
-                  py: 1.5,
-                  bgcolor: isActive ? 'rgba(34,197,94,0.08)' : 'transparent',
-                  color: isActive ? 'primary.main' : 'text.secondary',
-                  '&.Mui-selected': {
-                    bgcolor: 'rgba(34,197,94,0.12)',
-                    color: 'primary.main',
-                    '&:hover': { bgcolor: 'rgba(34,197,94,0.18)' },
-                    '& .MuiListItemIcon-root': { color: 'primary.main' }
-                  },
-                  '&:hover': {
-                    bgcolor: 'rgba(0,0,0,0.03)',
-                    borderRadius: 1.5
-                  }
-                }}
-              >
-                <ListItemIcon sx={{ minWidth: 45, color: isActive ? 'primary.main' : 'inherit' }}>
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText 
-                  primary={item.text} 
-                  primaryTypographyProps={{ fontWeight: isActive ? 700 : 500, fontSize: '0.95rem' }} 
-                />
-              </ListItemButton>
-            </ListItem>
-          );
-        })}
-      </List>
       
       <Box sx={{ mt: 'auto', p: 3 }}>
         <Paper sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
