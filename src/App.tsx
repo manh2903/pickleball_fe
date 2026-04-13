@@ -42,6 +42,8 @@ import AdminWithdrawals from '@/pages/AdminWithdrawals';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminCoupons from './pages/AdminCoupons';
 import { useAuthStore } from './stores/authStore';
+import { socketService } from './utils/socket';
+import { useEffect } from 'react';
 
 // Guard for routes
 const ProtectedRoute = ({ children, role }: { children: React.ReactNode, role?: string }) => {
@@ -53,6 +55,13 @@ const ProtectedRoute = ({ children, role }: { children: React.ReactNode, role?: 
 
 function App() {
   const location = useLocation();
+  const { isAuthenticated } = useAuthStore();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      socketService.connect();
+    }
+  }, [isAuthenticated]);
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>

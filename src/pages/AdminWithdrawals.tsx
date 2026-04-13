@@ -1,9 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  Box, Typography, Table, TableBody, TableCell, 
-  TableContainer, TableHead, TableRow, Paper, Chip, 
+  Box, Typography, Chip, 
   IconButton, Button, Dialog, DialogTitle, DialogContent,
-  DialogActions, TextField, CircularProgress,
+  DialogActions, TextField,
   Tooltip, Alert, Stack, Divider
 } from '@mui/material';
 import { 
@@ -14,7 +13,7 @@ import { useState, useEffect } from 'react';
 import { withdrawalApi } from '@/api/withdrawalApi';
 import { useSnackbar } from 'notistack';
 import { socketService } from '@/utils/socket';
-import { useAuthStore } from '@/stores/authStore';
+import DataTable, { Column } from '@/components/DataTable';
 
 const AdminWithdrawals = () => {
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
@@ -24,46 +23,17 @@ const AdminWithdrawals = () => {
   const [adminNote, setAdminNote] = useState('');
   const queryClient = useQueryClient();
   const { enqueueSnackbar } = useSnackbar();
-  const { user } = useAuthStore();
+  
+  // Pagination state
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  // Join admin-room & listen for real-time withdrawal events
-  useEffect(() => {
-    socketService.joinAdmin();
-
-    const handleNotification = (notif: any) => {
-      if (notif?.type === 'withdrawal_requested') {
-        queryClient.invalidateQueries({ queryKey: ['admin-withdrawals'] });
-        enqueueSnackbar(
-          `💸 Yêu cầu rút tiền mới: ${notif.body}`,
-          { variant: 'info', autoHideDuration: 6000 }
-        );
-      }
-    };
-
-    // Also listen for the dedicated direct event (instant refresh without needing notification bell)
-    const handleDirectWithdrawal = (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-withdrawals'] });
-      enqueueSnackbar(
-        `💸 Chủ sân ${data.owner_name} vừa yêu cầu rút ${new Intl.NumberFormat('vi-VN').format(data.amount)}đ`,
-        { variant: 'info', autoHideDuration: 6000 }
-      );
-    };
-
-    socketService.socket?.on('new-notification', handleNotification);
-    socketService.socket?.on('withdrawal-new-request', handleDirectWithdrawal);
-
-    return () => {
-      socketService.socket?.off('new-notification', handleNotification);
-      socketService.socket?.off('withdrawal-new-request', handleDirectWithdrawal);
-    };
-  }, [queryClient]);
-
-  const { data: requestsRes, isLoading } = useQuery({
-    queryKey: ['admin-withdrawals'],
-    queryFn: () => withdrawalApi.getAllRequests(),
-  });
-
-  const requests = requestsRes?.data?.requests || [];
+  const statusColors: any = {
+    pending: 'warning',
+    processing: 'info',
+    completed: 'success',
+    rejected: 'error'
+  };
 
   const updateMutation = useMutation({
     mutationFn: (data: any) => withdrawalApi.updateStatus(data.id, data.payload),
@@ -95,14 +65,115 @@ const AdminWithdrawals = () => {
     });
   };
 
-  const statusColors: any = {
-    pending: 'warning',
-    processing: 'info',
-    completed: 'success',
-    rejected: 'error'
+  // Listen for real-time withdrawal events
+  useEffect(() => {
+    if (!socketService.socket) return;
+    
+    console.log('📡 AdminWithdrawals: Registering socket listeners...');
+
+    const handleNotification = (notif: any) => {
+      console.log('🔔 AdminWithdrawals received notification:', notif);
+      if (notif?.type === 'withdrawal_requested') {
+        queryClient.invalidateQueries({ queryKey: ['admin-withdrawals'] });
+      }
+    };
+
+    const handleDirectWithdrawal = (data: any) => {
+      console.log('💸 AdminWithdrawals received direct withdrawal event:', data);
+      queryClient.invalidateQueries({ queryKey: ['admin-withdrawals'] });
+    };
+
+    socketService.socket.on('new-notification', handleNotification);
+    socketService.socket.on('withdrawal-new-request', handleDirectWithdrawal);
+
+    // Re-join admin room if socket reconnects
+    const handleConnect = () => {
+      console.log('🔌 AdminWithdrawals: Socket reconnected, re-joining admin room');
+      socketService.joinAdmin();
+    };
+    socketService.socket.on('connect', handleConnect);
+
+    return () => {
+      socketService.socket?.off('new-notification', handleNotification);
+      socketService.socket?.off('withdrawal-new-request', handleDirectWithdrawal);
+      socketService.socket?.off('connect', handleConnect);
+    };
+  }, [queryClient, enqueueSnackbar, socketService.socket]);
+
+  const { data: requestsRes, isLoading } = useQuery({
+    queryKey: ['admin-withdrawals'],
+    queryFn: () => withdrawalApi.getAllRequests(),
+  });
+
+  const requests = requestsRes?.data?.requests || [];
+
+  const columns: Column<any>[] = [
+    {
+      key: 'owner',
+      label: 'Chủ sân',
+      render: (row) => (
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 700 }}>{row.owner?.name}</Typography>
+          <Typography variant="caption" color="text.secondary">{row.owner?.phone}</Typography>
+        </Box>
+      )
+    },
+    {
+      key: 'amount',
+      label: 'Số tiền',
+      render: (row) => (
+        <Typography variant="body2" sx={{ fontWeight: 800, color: 'primary.main' }}>
+          {new Intl.NumberFormat('vi-VN').format(row.amount)}đ
+        </Typography>
+      )
+    },
+    {
+      key: 'bank',
+      label: 'Ngân hàng nhận',
+      render: (row) => (
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>{row.bank_name}</Typography>
+          <Typography variant="caption" color="text.secondary">{row.bank_account}</Typography>
+        </Box>
+      )
+    },
+    {
+      key: 'created_at',
+      label: 'Ngày yêu cầu',
+      render: (row) => row.createdAt
+    },
+    {
+      key: 'status',
+      label: 'Trạng thái',
+      render: (row) => (
+        <Chip 
+          label={row.status} 
+          color={statusColors[row.status]} 
+          size="small" 
+          sx={{ fontWeight: 800, fontSize: '0.65rem', textTransform: 'uppercase' }} 
+        />
+      )
+    },
+    {
+      key: 'actions',
+      label: 'Thao tác',
+      align: 'right',
+      render: (row) => (
+        <Tooltip title="Xem chi tiết & Xử lý">
+          <IconButton size="small" color="primary" onClick={() => handleOpenDetail(row)}>
+            <Visibility fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )
+    }
+  ];
+
+  const handlePageChange = (_: unknown, newPage: number) => setPage(newPage);
+  const handleRowsPerPageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(e.target.value, 10));
+    setPage(0);
   };
 
-  if (isLoading) return <CircularProgress />;
 
   return (
     <Box>
@@ -112,60 +183,17 @@ const AdminWithdrawals = () => {
         </Typography>
       </Box>
 
-      <TableContainer component={Paper} sx={{ borderRadius: 1.5 }}>
-        <Table>
-          <TableHead sx={{ bgcolor: '#F8FAFC' }}>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 700 }}>Chủ sân</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Số tiền</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Ngân hàng nhận</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Ngày yêu cầu</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Trạng thái</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700 }}>Thao tác</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {requests.map((req: any) => (
-              <TableRow key={req.id} hover>
-                <TableCell>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{req.owner?.name}</Typography>
-                  <Typography variant="caption" color="text.secondary">{req.owner?.phone}</Typography>
-                </TableCell>
-                <TableCell sx={{ fontWeight: 800, color: 'primary.main' }}>
-                  {new Intl.NumberFormat('vi-VN').format(req.amount)}đ
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{req.bank_name}</Typography>
-                  <Typography variant="caption" color="text.secondary">{req.bank_account}</Typography>
-                </TableCell>
-                <TableCell>{new Date(req.created_at).toLocaleDateString('vi-VN')}</TableCell>
-                <TableCell>
-                  <Chip 
-                    label={req.status} 
-                    color={statusColors[req.status]} 
-                    size="small" 
-                    sx={{ fontWeight: 800, fontSize: '0.65rem', textTransform: 'uppercase' }} 
-                  />
-                </TableCell>
-                <TableCell align="right">
-                  <Tooltip title="Xem chi tiết & Xử lý">
-                    <IconButton size="small" color="primary" onClick={() => handleOpenDetail(req)}>
-                      <Visibility fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </TableCell>
-              </TableRow>
-            ))}
-            {requests.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} sx={{ py: 6, textAlign: 'center' }}>
-                  <Typography color="text.secondary">Chưa có yêu cầu rút tiền nào cần xử lý.</Typography>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <DataTable
+        columns={columns}
+        data={requests.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)}
+        isLoading={isLoading}
+        count={requests.length}
+        page={page}
+        rowsPerPage={rowsPerPage}
+        onPageChange={handlePageChange}
+        onRowsPerPageChange={handleRowsPerPageChange}
+        emptyMessage="Chưa có yêu cầu rút tiền nào cần xử lý."
+      />
 
       {/* Admin Action Dialog */}
       <Dialog open={openDetail} onClose={() => setOpenDetail(false)} maxWidth="sm" fullWidth>

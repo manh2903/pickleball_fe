@@ -6,6 +6,8 @@ class SocketService {
   public socket: Socket | null = null;
 
   connect() {
+    if (this.socket?.connected) return this.socket;
+    
     this.socket = io(SOCKET_URL, {
       transports: ['websocket'],
       reconnection: true,
