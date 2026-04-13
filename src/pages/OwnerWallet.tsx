@@ -4,30 +4,29 @@ import {
   Table, TableBody, TableCell, TableContainer, 
   TableHead, TableRow, Paper, Chip, TextField,
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Alert, CircularProgress, Divider
+  Alert, CircularProgress
 } from '@mui/material';
 import { 
   AccountBalanceWallet, History, CallMade, 
-  LocalAtm, ReceiptLong, Payment as PaymentIcon,
-  Storefront, Lock, TrendingUp
+  LocalAtm, ReceiptLong, Lock, TrendingUp
 } from '@mui/icons-material';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as ReTooltip, ResponsiveContainer, Cell
 } from 'recharts';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { withdrawalApi } from '@/api/withdrawalApi';
 import { paymentApi } from '@/api/paymentApi';
 import { ownerApi } from '@/api/ownerApi';
+import { authApi } from '@/api/authApi';
 import { useAuthStore } from '@/stores/authStore';
+import { socketService } from '@/utils/socket';
 import { useSnackbar } from 'notistack';
 
 const OwnerWallet = () => {
-  const { user } = useAuthStore();
-  console.log("user", user)
+  const { user, updateUser } = useAuthStore();
   const subscription = (useAuthStore as any).getState?.()?.subscription;
-  // const hasAnalytics = subscription?.option?.features?.analytics === true;
-  const hasAnalytics = true;
+  const hasAnalytics = subscription?.option?.features?.analytics === true;
   const [openWithdraw, setOpenWithdraw] = useState(false);
   const [amount, setAmount] = useState('');
   const [bankName, setBankName] = useState('');
@@ -36,6 +35,45 @@ const OwnerWallet = () => {
   
   const queryClient = useQueryClient();
   const { enqueueSnackbar } = useSnackbar();
+
+  // --- Real-time: Poll /auth/me every 30s for latest wallet_balance ---
+  const { data: meData, refetch: refetchMe } = useQuery({
+    queryKey: ['auth-me-wallet'],
+    queryFn: () => authApi.getMe(),
+    refetchInterval: 30_000,       // Poll every 30 seconds
+    staleTime: 10_000,
+  });
+
+  // Sync fresh wallet_balance into Zustand store whenever /auth/me returns
+  useEffect(() => {
+    const freshUser = meData?.data?.user || meData?.data;
+    if (freshUser?.wallet_balance !== undefined) {
+      updateUser({ wallet_balance: freshUser.wallet_balance });
+    }
+  }, [meData]);
+
+  // --- Real-time: Socket listener for booking events ---
+  useEffect(() => {
+    const handleBookingUpdate = () => {
+      // Immediately refetch wallet balance + analytics on any booking change
+      refetchMe();
+      queryClient.invalidateQueries({ queryKey: ['owner-analytics-wallet'] });
+      queryClient.invalidateQueries({ queryKey: ['owner-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['my-withdrawals'] });
+    };
+
+    socketService.socket?.on('booking-status-updated', handleBookingUpdate);
+    socketService.socket?.on('new-booking', handleBookingUpdate);
+
+    return () => {
+      socketService.socket?.off('booking-status-updated', handleBookingUpdate);
+      socketService.socket?.off('new-booking', handleBookingUpdate);
+    };
+  }, [socketService.socket]);
+
+  // Live wallet balance — prefer fresh data from /auth/me, fallback to store
+  const freshUser = meData?.data?.user || meData?.data;
+  const walletBalance = freshUser?.wallet_balance ?? user?.wallet_balance ?? 0;
 
   // 1. Fetch Withdrawals
   const { data: withdrawalsRes, isLoading: loadingWithdraws } = useQuery({
@@ -110,7 +148,7 @@ const OwnerWallet = () => {
             <AccountBalanceWallet sx={{ position: 'absolute', right: -20, bottom: -20, fontSize: 150, opacity: 0.1 }} />
             <Typography variant="subtitle2" sx={{ opacity: 0.8, fontWeight: 700, mb: 1, letterSpacing: 1 }}>SỐ DƯ KHẢ DỤNG</Typography>
             <Typography variant="h3" sx={{ fontWeight: 900, mb: 3, fontFamily: 'monospace' }}>
-              {new Intl.NumberFormat('vi-VN').format(user?.wallet_balance || 0)}đ
+              {new Intl.NumberFormat('vi-VN').format(walletBalance)}đ
             </Typography>
             <Button 
               variant="contained" 
@@ -133,7 +171,7 @@ const OwnerWallet = () => {
               <Grid item xs={6}>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, letterSpacing: 1 }}>TỔNG DOANH THU</Typography>
                 <Typography variant="h5" sx={{ fontWeight: 900, mt: 1, color: '#0F172A' }}>
-                  {new Intl.NumberFormat('vi-VN').format(hasAnalytics ? (analytics?.totalRevenue || 0) : (user?.wallet_balance || 0))}đ
+                  {new Intl.NumberFormat('vi-VN').format(hasAnalytics ? (analytics?.totalRevenue || 0) : walletBalance)}đ
                   <Typography variant="caption" sx={{ display: 'block', fontWeight: 500, color: 'text.secondary' }}>Tổng đặt sân đã thanh toán</Typography>
                 </Typography>
               </Grid>
@@ -325,7 +363,7 @@ const OwnerWallet = () => {
         <DialogTitle sx={{ fontWeight: 900, px: 3, pt: 3 }}>Yêu cầu rút tiền 💸</DialogTitle>
         <DialogContent sx={{ px: 3 }}>
           <Alert severity="info" sx={{ mb: 3, borderRadius: 2, fontWeight: 600 }}>
-            Số dư ví hiện tại: {new Intl.NumberFormat('vi-VN').format(user?.wallet_balance || 0)}đ
+            Số dư ví hiện tại: {new Intl.NumberFormat('vi-VN').format(walletBalance)}đ
           </Alert>
           <Stack spacing={2.5}>
             <TextField 
