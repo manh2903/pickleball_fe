@@ -3,7 +3,7 @@ import {
   Box, Drawer, List, ListItem, ListItemButton, 
   ListItemIcon, ListItemText, Toolbar, Typography, 
   Divider, useTheme, useMediaQuery, IconButton,
-  Paper, Stack, Avatar, Menu, Tooltip, MenuItem
+  Stack, Avatar, Menu, Tooltip, MenuItem
 } from '@mui/material';
 import { 
   BarChart, Business, People, ConfirmationNumber, 

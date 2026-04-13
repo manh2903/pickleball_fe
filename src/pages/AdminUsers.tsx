@@ -3,11 +3,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Box, Card, Typography, TextField, 
   IconButton, Chip, Stack, MenuItem, 
-  Tooltip, Avatar, Tabs, Tab
+  Tooltip, Avatar, Tabs, Tab,
+  Dialog, DialogTitle, DialogContent, DialogActions, Button,
+  Divider, Grid, CircularProgress, Alert, Table, TableHead, TableRow, TableCell, TableBody
 } from '@mui/material';
 import { 
   Block, CheckCircle, Visibility, 
-  Email, Phone as PhoneIcon, Security, Badge, Wallet
+  Email, Security, Badge, Wallet,
+  CalendarMonth, Update, Person, Store, WorkspacePremium, History
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { adminApi } from '@/api/adminApi';
@@ -21,24 +24,43 @@ const AdminUsers = () => {
   const [role, setRole] = useState('');
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(0); // DataTable uses 0-based paging for MUI TablePagination logic usually, or I adapt.
+  const [page, setPage] = useState(0); 
   const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  // Detail Modal State
+  const [viewingUserId, setViewingUserId] = useState<number | null>(null);
+  const [openDetail, setOpenDetail] = useState(false);
 
   const { data: usersRes, isLoading } = useQuery({
     queryKey: ['admin-users', role, status, search, page, rowsPerPage],
     queryFn: () => adminApi.getUsers({ role, status, search, page: page + 1, limit: rowsPerPage })
   });
 
+  // Fetch detailed info when modal opens
+  const { data: detailRes, isLoading: loadingDetail } = useQuery({
+    queryKey: ['admin-user-detail', viewingUserId],
+    queryFn: () => adminApi.getUserDetail(viewingUserId!),
+    enabled: !!viewingUserId && openDetail
+  });
+
   const users = usersRes?.data?.users || [];
   const totalUsers = usersRes?.data?.total || 0;
+  const userDetail = detailRes?.data;
+  const selectedUser = userDetail?.user;
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number, status: string }) => adminApi.updateUserStatus(id, status),
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-user-detail', viewingUserId] });
       enqueueSnackbar(res.data?.message || 'Cập nhật trạng thái thành công', { variant: 'success' });
     }
   });
+
+  const handleOpenDetail = (user: any) => {
+    setViewingUserId(user.id);
+    setOpenDetail(true);
+  };
 
   const getRoleChip = (role: string) => {
     switch (role) {
@@ -62,9 +84,6 @@ const AdminUsers = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
                 <Email sx={{ fontSize: 12, mr: 0.5 }} /> {user.email}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
-                <PhoneIcon sx={{ fontSize: 12, mr: 0.5 }} /> {user.phone || 'N/A'}
               </Typography>
             </Box>
           </Box>
@@ -93,7 +112,7 @@ const AdminUsers = () => {
       label: 'Trạng thái',
       render: (user: any) => (
         <Chip 
-          label={user.status === 'active' ? 'Đang hoạt động' : 'Đã khóa'} 
+          label={user.status === 'active' ? 'Hoạt động' : 'Đã khóa'} 
           color={user.status === 'active' ? 'success' : 'default'} 
           size="small" 
           variant="outlined" 
@@ -128,8 +147,8 @@ const AdminUsers = () => {
               </IconButton>
             </Tooltip>
           )}
-          <Tooltip title="Xem chi tiết">
-            <IconButton size="small">
+          <Tooltip title="Xem chi tiết & Lịch sử">
+            <IconButton size="small" onClick={() => handleOpenDetail(user)}>
               <Visibility fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -201,6 +220,200 @@ const AdminUsers = () => {
         />
       </Box>
       </Card>
+
+      {/* User Detail Dialog */}
+      <Dialog open={openDetail} onClose={() => setOpenDetail(false)} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Person color="primary" /> Chi tiết tài liệu quản trị
+        </DialogTitle>
+        <DialogContent dividers>
+          {loadingDetail ? (
+              <Box sx={{ py: 10, textAlign: 'center' }}><CircularProgress /></Box>
+          ) : selectedUser ? (
+            <Stack spacing={3}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar 
+                    src={selectedUser.avatar} 
+                    sx={{ width: 80, height: 80, fontSize: '2rem', bgcolor: 'primary.light', fontWeight: 900 }}
+                >
+                  {selectedUser.name?.charAt(0)}
+                </Avatar>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 800 }}>{selectedUser.name}</Typography>
+                  <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
+                    {getRoleChip(selectedUser.role)}
+                    <Chip 
+                        label={selectedUser.status === 'active' ? 'Hoạt động' : 'Đã khóa'} 
+                        color={selectedUser.status === 'active' ? 'success' : 'error'}
+                        size="small"
+                        sx={{ fontWeight: 700 }}
+                    />
+                  </Box>
+                </Box>
+              </Box>
+
+              <Divider />
+
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={7}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 2, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                        🛡️ THÔNG TIN CƠ BẢN
+                    </Typography>
+                    <Grid container spacing={2}>
+                        <Grid item xs={6}>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>📧 EMAIL</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 700 }}>{selectedUser.email}</Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>📞 SỐ ĐIỆN THOẠI</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 700 }}>{selectedUser.phone || 'Chưa cập nhật'}</Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                            <Stack spacing={1}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <CalendarMonth sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                    <Box>
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1 }}>NGÀY THAM GIA</Typography>
+                                        <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                                            {new Date(selectedUser.created_at || selectedUser.createdAt).toLocaleDateString('vi-VN')}
+                                        </Typography>
+                                    </Box>
+                                </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Update sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                    <Box>
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1 }}>CẬP NHẬT CUỐI</Typography>
+                                        <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                                            {new Date(selectedUser.updated_at || selectedUser.updatedAt).toLocaleString('vi-VN')}
+                                        </Typography>
+                                    </Box>
+                                </Box>
+                            </Stack>
+                        </Grid>
+                    </Grid>
+                </Grid>
+
+                <Grid item xs={12} md={5}>
+                    <Box sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 2, border: '1px solid #E2E8F0', height: '100%' }}>
+                        <Typography variant="caption" color="primary" sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
+                            <Wallet fontSize="inherit" /> TÀI CHÍNH NỀN TẢNG
+                        </Typography>
+                        <Typography variant="h5" sx={{ fontWeight: 950, color: 'primary.main' }}>
+                            {new Intl.NumberFormat('vi-VN').format(selectedUser.wallet_balance || 0)}đ
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                            {selectedUser.role === 'owner' ? '* Bao gồm doanh thu từ booking chưa rút.' : '* Tiền dư trong tài khoản người chơi.'}
+                        </Typography>
+                    </Box>
+                </Grid>
+              </Grid>
+
+              {/* Owner Specific Info */}
+              {selectedUser.role === 'owner' && (
+                  <Box sx={{ p: 2.5, bgcolor: '#F0F9FF', borderRadius: 2, border: '1px solid #BAE6FD' }}>
+                      <Stack direction="row" spacing={3} divider={<Divider orientation="vertical" flexItem />}>
+                          <Box sx={{ flex: 1 }}>
+                              <Typography variant="caption" sx={{ fontWeight: 800, color: '#0369A1', display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                  <WorkspacePremium sx={{ fontSize: 18 }} /> GÓI DỊCH VỤ HIỆN TẠI
+                              </Typography>
+                              {userDetail.subscription ? (
+                                  <Box>
+                                      <Typography variant="subtitle1" sx={{ fontWeight: 900 }}>
+                                          {userDetail.subscription.option?.plan?.name}
+                                      </Typography>
+                                      <Typography variant="caption" color="text.secondary">
+                                          Hết hạn: {new Date(userDetail.subscription.end_date).toLocaleDateString('vi-VN')}
+                                      </Typography>
+                                  </Box>
+                              ) : (
+                                  <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>Chưa đăng ký gói</Typography>
+                              )}
+                          </Box>
+                          <Box sx={{ flex: 1 }}>
+                              <Typography variant="caption" sx={{ fontWeight: 800, color: '#0369A1', display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                  <Store sx={{ fontSize: 18 }} /> CƠ SỞ ĐANG QUẢN LÝ
+                              </Typography>
+                              <Typography variant="h4" sx={{ fontWeight: 950 }}>
+                                  {userDetail.venueCount || 0} <Typography component="span" variant="body2" color="text.secondary">Sân</Typography>
+                              </Typography>
+                          </Box>
+                      </Stack>
+                  </Box>
+              )}
+
+              {/* User Specific Info - Booking History */}
+              {selectedUser.role === 'user' && (
+                  <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 2, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <History /> LỊCH SỬ ĐẶT SÂN GẦN NHẤT
+                      </Typography>
+                      {userDetail.recentBookings?.length > 0 ? (
+                          <Table size="small">
+                              <TableHead>
+                                  <TableRow>
+                                      <TableCell sx={{ fontWeight: 800, fontSize: '0.75rem' }}>Mã đặt sân</TableCell>
+                                      <TableCell sx={{ fontWeight: 800, fontSize: '0.75rem' }}>Cơ sở</TableCell>
+                                      <TableCell sx={{ fontWeight: 800, fontSize: '0.75rem' }}>Thời gian</TableCell>
+                                      <TableCell sx={{ fontWeight: 800, fontSize: '0.75rem' }}>Tổng tiền</TableCell>
+                                      <TableCell sx={{ fontWeight: 800, fontSize: '0.75rem' }}>Trạng thái</TableCell>
+                                  </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                  {userDetail.recentBookings.map((bk: any) => (
+                                      <TableRow key={bk.id}>
+                                          <TableCell sx={{ fontSize: '0.75rem', fontWeight: 700 }}>{bk.booking_code}</TableCell>
+                                          <TableCell sx={{ fontSize: '0.75rem' }}>{bk.venue?.name}</TableCell>
+                                          <TableCell sx={{ fontSize: '0.75rem' }}>{new Date(bk.created_at).toLocaleDateString('vi-VN')}</TableCell>
+                                          <TableCell sx={{ fontSize: '0.75rem', fontWeight: 700 }}>{new Intl.NumberFormat('vi-VN').format(bk.total_price)}đ</TableCell>
+                                          <TableCell>
+                                              <Chip 
+                                                label={bk.status === 'confirmed' ? 'Thành công' : bk.status} 
+                                                size="small" 
+                                                color={bk.status === 'confirmed' ? 'success' : 'default'}
+                                                sx={{ height: 18, fontSize: '0.65rem', fontWeight: 800 }} 
+                                              />
+                                          </TableCell>
+                                      </TableRow>
+                                  ))}
+                              </TableBody>
+                          </Table>
+                      ) : (
+                          <Alert severity="info" sx={{ py: 0 }}>Người dùng này chưa có đơn đặt sân nào.</Alert>
+                      )}
+                  </Box>
+              )}
+            </Stack>
+          ) : (
+            <Alert severity="warning">Không tìm thấy dữ liệu người dùng.</Alert>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, bgcolor: '#F8FAFC' }}>
+          <Button onClick={() => setOpenDetail(false)} sx={{ fontWeight: 700, textTransform: 'none' }}>Đóng cửa sổ</Button>
+          {selectedUser?.status === 'active' ? (
+              <Button 
+                variant="outlined" 
+                color="error" 
+                startIcon={<Block />}
+                onClick={() => updateStatusMutation.mutate({ id: selectedUser.id, status: 'inactive' })}
+                disabled={updateStatusMutation.isPending || selectedUser.role === 'admin'}
+                sx={{ fontWeight: 700, textTransform: 'none' }}
+              >
+                Khóa vĩnh viễn
+              </Button>
+          ) : (
+              <Button 
+                variant="contained" 
+                color="success" 
+                startIcon={<CheckCircle />}
+                onClick={() => updateStatusMutation.mutate({ id: selectedUser.id, status: 'active' })}
+                disabled={updateStatusMutation.isPending}
+                sx={{ fontWeight: 700, textTransform: 'none' }}
+              >
+                Kích hoạt lại
+              </Button>
+          )}
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

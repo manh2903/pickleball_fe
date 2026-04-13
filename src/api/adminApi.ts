@@ -3,9 +3,11 @@ import api from '@/api';
 export const adminApi = {
   getStats: () => api.get('/admin/stats'),
   getUsers: (params?: any) => api.get('/admin/users', { params }),
+  getUserDetail: (id: number | string) => api.get(`/admin/users/${id}`),
   updateUserStatus: (id: number | string, status: string) => api.put(`/admin/users/${id}/status`, { status }),
   
   getVenues: (params?: any) => api.get('/admin/venues', { params }),
+  getVenueDetail: (id: number | string) => api.get(`/admin/venues/${id}`),
   updateVenueStatus: (id: number | string, status: string) => api.put(`/admin/venues/${id}/status`, { status }),
   setVenueCommission: (id: number | string, rate: number) => api.put(`/admin/venues/${id}/commission`, { commission_rate: rate }),
 

@@ -121,7 +121,7 @@ const AdminDashboard = () => {
         <Grid item xs={12} md={8}>
           <Card sx={{ p: 4, borderRadius: 1.5 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-              <Typography variant="h6" sx={{ fontWeight: 800 }}>Yêu cầu phê duyệt cơ sở 🏢</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>Theo dõi Địa điểm mới 🏢</Typography>
               <Button component={Link} to="/admin/venues" endIcon={<ArrowOutward />} size="small">Xem tất cả</Button>
             </Box>
             
@@ -146,7 +146,7 @@ const AdminDashboard = () => {
                     <TableRow key={venue.id} hover>
                       <TableCell sx={{ fontWeight: 700 }}>{venue.name}</TableCell>
                       <TableCell>{venue.owner?.name}</TableCell>
-                      <TableCell><Chip label="Chờ duyệt" color="warning" size="small" /></TableCell>
+                      <TableCell><Chip label="Mới khởi tạo" color="info" size="small" variant="outlined" sx={{ fontWeight: 800 }} /></TableCell>
                       <TableCell align="right">
                         <IconButton component={Link} to="/admin/venues" color="primary">
                           <Visibility fontSize="small" />
