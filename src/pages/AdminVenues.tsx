@@ -1,18 +1,17 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  Box, Card, Typography, Button, Table, TableBody, 
-  TableCell, TableContainer, TableHead, TableRow,
-  IconButton, Chip, Dialog, DialogTitle, DialogContent,
-  DialogActions, TextField, Stack, MenuItem, CircularProgress,
-  Tooltip, Avatar, InputAdornment
+  Box, Card, Typography, 
+  IconButton, Chip, TextField, Stack, MenuItem, 
+  Tooltip, Avatar
 } from '@mui/material';
 import { 
-  CheckCircle, Cancel, Percent, 
-  Visibility, Search, Business
+  CheckCircle, Cancel, 
+  Visibility, Search
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { adminApi } from '@/api/adminApi';
+import DataTable, { Column } from '@/components/DataTable';
 
 const AdminVenues = () => {
   const queryClient = useQueryClient();
@@ -20,16 +19,16 @@ const AdminVenues = () => {
   
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
-  const [selectedVenue, setSelectedVenue] = useState<any>(null);
-  const [commissionOpen, setCommissionOpen] = useState(false);
-  const [commissionRate, setCommissionRate] = useState<number>(0);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const { data: venuesRes, isLoading } = useQuery({
-    queryKey: ['admin-venues', statusFilter, search],
-    queryFn: () => adminApi.getVenues({ status: statusFilter, search })
+    queryKey: ['admin-venues', statusFilter, search, page, rowsPerPage],
+    queryFn: () => adminApi.getVenues({ status: statusFilter, search, page: page + 1, limit: rowsPerPage })
   });
 
   const venues = venuesRes?.data?.venues || [];
+  const totalVenues = venuesRes?.data?.total || 0;
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number, status: string }) => adminApi.updateVenueStatus(id, status),
@@ -39,199 +38,149 @@ const AdminVenues = () => {
     }
   });
 
-  const updateCommissionMutation = useMutation({
-    mutationFn: ({ id, rate }: { id: number, rate: number }) => adminApi.setCommission(id, rate),
-    onSuccess: (res: any) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-venues'] });
-      setCommissionOpen(false);
-      enqueueSnackbar(res.data?.message || 'Cập nhật hoa hồng thành công', { variant: 'success' });
-    }
-  });
-
-  const handleOpenCommission = (venue: any) => {
-    setSelectedVenue(venue);
-    setCommissionRate(venue.commission_rate || 10);
-    setCommissionOpen(true);
-  };
-
   const getStatusChip = (status: string) => {
     switch (status) {
-      case 'active': return <Chip label="Đang hoạt động" color="success" size="small" />;
-      case 'pending_review': return <Chip label="Chờ duyệt" color="warning" size="small" />;
-      case 'suspended': return <Chip label="Đình chỉ" color="error" size="small" />;
-      default: return <Chip label="Không hoạt động" color="default" size="small" />;
+      case 'active': return <Chip label="Đang hoạt động" color="success" size="small" variant="outlined" sx={{ fontWeight: 800 }} />;
+      case 'pending_review': return <Chip label="Chờ duyệt" color="warning" size="small" sx={{ fontWeight: 800 }} />;
+      case 'suspended': return <Chip label="Đình chỉ" color="error" size="small" sx={{ fontWeight: 800 }} />;
+      default: return <Chip label="Không hoạt động" color="default" size="small" sx={{ fontWeight: 800 }} />;
     }
   };
+
+  const columns: Column<any>[] = [
+    {
+      key: 'venue',
+      label: 'Thông tin Địa điểm',
+      render: (venue: any) => (
+        <Box sx={{ py: 1 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>{venue.name}</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+            {venue.address}
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 700 }}>
+             Hotline: {venue.phone || 'N/A'}
+          </Typography>
+        </Box>
+      )
+    },
+    {
+      key: 'owner',
+      label: 'Chủ sở hữu',
+      render: (venue: any) => (
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.light', color: 'primary.dark', fontWeight: 900, fontSize: '0.8rem' }}>
+             {venue.owner?.name?.charAt(0)}
+          </Avatar>
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.85rem' }}>{venue.owner?.name}</Typography>
+            <Typography variant="caption" color="text.secondary">{venue.owner?.email}</Typography>
+          </Box>
+        </Stack>
+      )
+    },
+    {
+      key: 'status',
+      label: 'Trạng thái',
+      render: (venue: any) => getStatusChip(venue.status)
+    },
+    {
+      key: 'actions',
+      label: 'Hành động',
+      align: 'right',
+      render: (venue: any) => (
+        <Stack direction="row" spacing={1} justifyContent="flex-end">
+          {venue.status === 'pending_review' && (
+            <Tooltip title="Duyệt hoạt động">
+              <IconButton 
+                color="success" size="small"
+                onClick={() => updateStatusMutation.mutate({ id: venue.id, status: 'active' })}
+                disabled={updateStatusMutation.isPending}
+              >
+                <CheckCircle />
+              </IconButton>
+            </Tooltip>
+          )}
+          {venue.status === 'active' && (
+            <Tooltip title="Đình chỉ tạm thời">
+              <IconButton 
+                color="error" size="small"
+                onClick={() => updateStatusMutation.mutate({ id: venue.id, status: 'suspended' })}
+                disabled={updateStatusMutation.isPending}
+              >
+                <Cancel />
+              </IconButton>
+            </Tooltip>
+          )}
+          {venue.status === 'suspended' && (
+            <Tooltip title="Mở khóa">
+              <IconButton 
+                color="success" size="small"
+                onClick={() => updateStatusMutation.mutate({ id: venue.id, status: 'active' })}
+                disabled={updateStatusMutation.isPending}
+              >
+                <CheckCircle />
+              </IconButton>
+            </Tooltip>
+          )}
+          <Tooltip title="Xem chi tiết">
+            <IconButton size="small">
+              <Visibility fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      )
+    }
+  ];
 
   return (
     <Box>
-      <Card sx={{ p: 4, borderRadius: 1.5 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 800 }}>Phê duyệt Địa điểm & Đối tác 🏢</Typography>
-            <Typography variant="body2" color="text.secondary">Duyệt hồ sơ cơ sở mới và quản lý tỷ lệ kinh doanh.</Typography>
-          </Box>
-          <Stack direction="row" spacing={2}>
-            <TextField 
-              size="small" 
-              placeholder="Tìm tên sân, địa chỉ..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              InputProps={{ startAdornment: <Search sx={{ color: 'text.disabled', mr: 1 }} /> }}
-            />
-            <TextField 
-              select 
-              size="small" 
-              label="Trạng thái" 
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              sx={{ minWidth: 150 }}
-            >
-              <MenuItem value="">Tất cả</MenuItem>
-              <MenuItem value="active">Đang hoạt động</MenuItem>
-              <MenuItem value="pending_review">Chờ duyệt</MenuItem>
-              <MenuItem value="suspended">Đã đình chỉ</MenuItem>
-            </TextField>
-          </Stack>
-        </Box>
+      <Typography variant="h5" sx={{ fontWeight: 950, mb: 1, letterSpacing: -1 }}>
+        Phê duyệt Địa điểm & Đối tác 🏢
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 4, fontWeight: 500 }}>
+        Quản lý các cơ sở đăng ký mới và kiểm soát trạng thái vận hành toàn hệ thống.
+      </Typography>
 
-        {isLoading ? (
-          <Box sx={{ py: 10, textAlign: 'center' }}><CircularProgress /></Box>
-        ) : (
-          <TableContainer>
-            <Table>
-              <TableHead sx={{ bgcolor: '#F8FAFC' }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 700 }}>Thông tin Địa điểm</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Chủ sở hữu</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Kinh doanh</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Trạng thái</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }} align="right">Hành động</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {venues.map((venue: any) => (
-                  <TableRow key={venue.id} hover>
-                    <TableCell sx={{ maxWidth: 300 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>{venue.name}</Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                        {venue.address}, {venue.district}, {venue.city}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 600 }}>
-                        Phone: {venue.phone || 'N/A'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>{venue.owner?.name?.charAt(0)}</Avatar>
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 700 }}>{venue.owner?.name}</Typography>
-                          <Typography variant="caption" color="text.secondary">{venue.owner?.email}</Typography>
-                        </Box>
-                      </Stack>
-                    </TableCell>
-                    <TableCell>
-                      <Chip 
-                        icon={<Percent sx={{ fontSize: 14 }} />} 
-                        label={`${venue.commission_rate || 0}%`} 
-                        variant="outlined" 
-                        onClick={() => handleOpenCommission(venue)}
-                        sx={{ fontWeight: 800, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(0,0,0,0.05)' } }}
-                      />
-                    </TableCell>
-                    <TableCell>{getStatusChip(venue.status)}</TableCell>
-                    <TableCell align="right">
-                      <Stack direction="row" spacing={1} justifyContent="flex-end">
-                        {venue.status === 'pending_review' && (
-                          <Tooltip title="Duyệt hoạt động">
-                            <IconButton 
-                              color="success" 
-                              onClick={() => updateStatusMutation.mutate({ id: venue.id, status: 'active' })}
-                              disabled={updateStatusMutation.isPending}
-                            >
-                              <CheckCircle />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                        {venue.status === 'active' && (
-                          <Tooltip title="Đình chỉ tạm thời">
-                            <IconButton 
-                              color="error" 
-                              onClick={() => updateStatusMutation.mutate({ id: venue.id, status: 'suspended' })}
-                              disabled={updateStatusMutation.isPending}
-                            >
-                              <Cancel />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                        {venue.status === 'suspended' && (
-                          <Tooltip title="Mở khóa">
-                            <IconButton 
-                              color="success" 
-                              onClick={() => updateStatusMutation.mutate({ id: venue.id, status: 'active' })}
-                              disabled={updateStatusMutation.isPending}
-                            >
-                              <CheckCircle />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                        <Tooltip title="Xem chi tiết">
-                          <IconButton size="small">
-                            <Visibility fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {venues.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} align="center" sx={{ py: 10 }}>
-                      <Business sx={{ fontSize: 40, color: 'text.disabled', mb: 2 }} />
-                      <Typography color="text.secondary">Không tìm thấy yêu cầu hoặc địa điểm nào.</Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-      </Card>
-
-      {/* Commission Dialog */}
-      <Dialog 
-        open={commissionOpen} 
-        onClose={() => setCommissionOpen(false)}
-        PaperProps={{ sx: { borderRadius: 1.5 } }}
-      >
-        <DialogTitle sx={{ fontWeight: 800 }}>Thiết lập tỷ lệ hoa hồng</DialogTitle>
-        <DialogContent sx={{ minWidth: 300 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Áp dụng cho cơ sở: <b>{selectedVenue?.name}</b>. Tỷ lệ này sẽ được trừ trực tiếp từ mỗi đơn hàng thành công.
-          </Typography>
-          <TextField
-            fullWidth
-            type="number"
-            label="Phần trăm hoa hồng"
-            value={commissionRate}
-            onChange={(e) => setCommissionRate(Number(e.target.value))}
-            InputProps={{
-              endAdornment: <InputAdornment position="end">%</InputAdornment>,
+      <Card sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', boxShadow: 'none' }}>
+        <Stack direction="row" spacing={2} sx={{ mb: 4 }}>
+          <TextField 
+            size="small" 
+            placeholder="Tìm tên sân, địa chỉ..." 
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+            InputProps={{ 
+               startAdornment: <Search sx={{ color: 'text.disabled', mr: 1 }} />,
+               sx: { borderRadius: 2 }
             }}
+            sx={{ flexGrow: 1, maxWidth: 400 }}
           />
-        </DialogContent>
-        <DialogActions sx={{ p: 3 }}>
-          <Button onClick={() => setCommissionOpen(false)} color="inherit">Hủy</Button>
-          <Button 
-            variant="contained" 
-            onClick={() => updateCommissionMutation.mutate({ id: selectedVenue.id, rate: commissionRate })}
-            disabled={updateCommissionMutation.isPending}
-            sx={{ borderRadius: 1, px: 4 }}
+          <Box sx={{ flexGrow: 1 }} />
+          <TextField 
+            select 
+            size="small" 
+            label="Trạng thái" 
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+            sx={{ minWidth: 200, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
           >
-            Lưu thiết lập
-          </Button>
-        </DialogActions>
-      </Dialog>
+            <MenuItem value="">Tất cả trạng thái</MenuItem>
+            <MenuItem value="active">Đang hoạt động</MenuItem>
+            <MenuItem value="pending_review">Chờ duyệt</MenuItem>
+            <MenuItem value="suspended">Đã đình chỉ</MenuItem>
+          </TextField>
+        </Stack>
+
+        <DataTable 
+          columns={columns}
+          data={venues}
+          isLoading={isLoading}
+          count={totalVenues}
+          page={page}
+          rowsPerPage={rowsPerPage}
+          onPageChange={(_, newPage) => setPage(newPage)}
+          onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+        />
+      </Card>
     </Box>
   );
 };

@@ -1,202 +1,307 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { 
-  Box, Typography, Grid, Card, Button, 
-  CircularProgress, Stack, Chip, Divider,
-  Alert, Paper
-} from '@mui/material';
-import { 
-  CheckCircle, 
-  Verified, Storefront, SportsTennis, 
-  History, AccessTime
-} from '@mui/icons-material';
+import { Box, Typography, Grid, Card, Button, CircularProgress, Stack, Chip, Divider, Paper, ToggleButtonGroup, ToggleButton, LinearProgress } from '@mui/material';
+import { CheckCircle, Cancel, Verified, Storefront, SportsTennis, AccessTime, Bolt, WorkspacePremium, Spa } from '@mui/icons-material';
+import { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { subscriptionApi } from '@/api/subscriptionApi';
 import { useSnackbar } from 'notistack';
+import type { ReactNode } from 'react';
 
-const OwnerSubscription = () => {
+/* ─── helpers ─────────────────────────────────────────────── */
+const FEATURE_LABELS: Record<string, string> = {
+  analytics: 'Báo cáo doanh thu',
+  staff_management: 'Quản lý nhân viên',
+  custom_coupons: 'Tạo mã khuyến mãi',
+};
+
+type TierConf = { color: string; gradient: string; icon: ReactNode; tier: number };
+
+const TIER_CONFIG: Record<string, TierConf> = {
+  free:    { color: '#64748B', gradient: 'linear-gradient(135deg,#64748B,#94A3B8)', icon: <Spa sx={{ fontSize: 28 }} />,              tier: 0 },
+  basic:   { color: '#3B82F6', gradient: 'linear-gradient(135deg,#2563EB,#60A5FA)', icon: <Bolt sx={{ fontSize: 28 }} />,             tier: 1 },
+  premium: { color: '#8B5CF6', gradient: 'linear-gradient(135deg,#7C3AED,#C084FC)', icon: <WorkspacePremium sx={{ fontSize: 28 }} />, tier: 2 },
+};
+
+const getTierKey = (name: string): string => {
+  const n = (name || '').toLowerCase();
+  if (n.includes('premium') || n.includes('chuyên')) return 'premium';
+  if (n.includes('basic')   || n.includes('bản'))    return 'basic';
+  return 'free';
+};
+
+const fmt = (v: any) =>
+  parseFloat(v) === 0
+    ? 'Miễn phí'
+    : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(v);
+
+const durationLabel = (m: number) => {
+  if (m >= 120) return 'Vĩnh viễn';
+  if (m === 12)  return '1 Năm';
+  return `${m} Tháng`;
+};
+
+/* ─── component ────────────────────────────────────────────── */
+export default function OwnerSubscription() {
   const { enqueueSnackbar } = useSnackbar();
+  const [durMap, setDurMap] = useState<Record<number, number>>({});
+
+  // Get venues from OwnerLayout context
+  const { venues = [] } = useOutletContext<{ venueId: any; venues: any[] }>();
+  const venueCount = venues.length;
 
   const { data: plansRes, isLoading: plansLoading } = useQuery({
     queryKey: ['subscription-plans'],
-    queryFn: subscriptionApi.getPlans
+    queryFn: subscriptionApi.getPlans,
   });
 
-  const { data: mySubRes, isLoading: subLoading, refetch: refetchSub } = useQuery({
+  const { data: mySubRes, isLoading: subLoading, refetch } = useQuery({
     queryKey: ['my-subscription'],
-    queryFn: subscriptionApi.getMySubscription
+    queryFn: subscriptionApi.getMySubscription,
   });
 
-  const purchaseMutation = useMutation({
-    mutationFn: (planId: number) => subscriptionApi.purchasePlan(planId),
+  const purchase = useMutation({
+    mutationFn: (optionId: number) => subscriptionApi.purchasePlan(optionId),
     onSuccess: (res: any) => {
-      enqueueSnackbar(res.message, { variant: 'info' });
-      // In real scenario, redirect to res.paymentUrl
+      enqueueSnackbar(res.message || 'Đang xử lý...', { variant: 'info' });
+      if (res.paymentUrl) window.location.href = res.paymentUrl;
+      refetch();
     },
-    onError: (err: any) => {
-      enqueueSnackbar(err.message || 'Lỗi khi thanh toán', { variant: 'error' });
-    }
+    onError: (err: any) => enqueueSnackbar(err.response?.data?.message || 'Lỗi', { variant: 'error' }),
   });
 
-  const plans = plansRes?.data || [];
-  const currentSub = mySubRes?.data;
+  const plans: any[]    = plansRes  || [];
+  const currentSub: any = mySubRes;
 
-  if (plansLoading || subLoading) return <Box sx={{ py: 10, textAlign: 'center' }}><CircularProgress size={60} /></Box>;
+  // Init duration map — smallest duration per plan; sync with current sub
+  useEffect(() => {
+    if (!plans.length) return;
+    const init: Record<number, number> = {};
+    plans.forEach((p: any) => {
+      const opts = p.options || [];
+      if (!opts.length) return;
+      const def = opts.reduce((a: any, b: any) => a.duration_months < b.duration_months ? a : b);
+      init[p.id] = def.duration_months;
+    });
+    if (currentSub?.plan_id && currentSub?.option?.duration_months) {
+      init[currentSub.plan_id] = currentSub.option.duration_months;
+    }
+    setDurMap(init);
+  }, [plans.length, currentSub?.id]);
+
+  if (plansLoading || subLoading)
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+        <CircularProgress size={48} />
+      </Box>
+    );
+
+  /* ── Current option stats strip ── */
+  const renderUsageStrip = () => {
+    const opt = currentSub?.option;
+    if (!opt) return null;
+
+    const venuePct = opt.max_venues > 0 ? Math.min(100, Math.round((venueCount / opt.max_venues) * 100)) : 0;
+
+    return (
+      <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid #E2E8F0', display: 'flex', gap: 3, flexShrink: 0, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* Venues usage */}
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Storefront sx={{ color: '#64748B', fontSize: 18 }} />
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>Cơ sở</Typography>
+          <LinearProgress
+            variant="determinate"
+            value={venuePct}
+            sx={{
+              width: 70, borderRadius: 5, height: 6,
+              bgcolor: '#E2E8F0',
+              '& .MuiLinearProgress-bar': { bgcolor: venuePct >= 100 ? '#EF4444' : '#10B981' }
+            }}
+          />
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+            {venueCount} / {opt.max_venues}
+          </Typography>
+        </Stack>
+
+        {/* Courts */}
+        <Stack direction="row" spacing={1} alignItems="center">
+          <SportsTennis sx={{ color: '#64748B', fontSize: 18 }} />
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>Sân/cơ sở</Typography>
+          <Typography variant="caption" color="text.secondary">tối đa <b>{opt.max_courts_per_venue}</b> sân</Typography>
+        </Stack>
+
+        {/* Feature chips — dynamic from API */}
+        {Object.entries(opt.features || {}).map(([k, v]: any) => (
+          <Chip
+            key={k}
+            size="small"
+            icon={v
+              ? <CheckCircle sx={{ color: '#10B981 !important', fontSize: '14px !important' }} />
+              : <Cancel    sx={{ color: '#CBD5E1 !important', fontSize: '14px !important' }} />
+            }
+            label={FEATURE_LABELS[k] || k}
+            sx={{ fontWeight: 600, bgcolor: v ? '#F0FDF4' : '#F8FAFC', color: v ? '#059669' : '#94A3B8', border: 'none' }}
+          />
+        ))}
+      </Paper>
+    );
+  };
+
+  /* ── Plan card ── */
+  const renderCard = (plan: any) => {
+    const tKey   = getTierKey(plan.name);
+    const conf   = TIER_CONFIG[tKey] || TIER_CONFIG.free;
+    const opts   = plan.options || [];
+    if (!opts.length) return null;
+
+    const selDur    = durMap[plan.id] ?? opts[0].duration_months;
+    const activeOpt = opts.find((o: any) => o.duration_months === selDur) || opts[0];
+    const isCurrent = currentSub?.option_id === activeOpt.id;
+    const currentTierLevel = TIER_CONFIG[getTierKey(currentSub?.plan?.name || '')]?.tier ?? 0;
+    const isUpgrade = !!currentSub && currentTierLevel < conf.tier;
+
+    return (
+      <Grid item xs={12} md={4} key={plan.id} sx={{ display: 'flex' }}>
+        <Card sx={{
+          flex: 1, p: 0, borderRadius: 4,
+          border: isCurrent ? `2px solid ${conf.color}` : '1.5px solid #E2E8F0',
+          position: 'relative', overflow: 'visible',
+          boxShadow: isCurrent ? `0 8px 30px -6px ${conf.color}55` : '0 2px 8px rgba(0,0,0,.04)',
+          transition: 'transform .2s, box-shadow .2s',
+          '&:hover': { transform: 'translateY(-4px)', boxShadow: `0 16px 40px -10px ${conf.color}44` },
+        }}>
+          {isCurrent && (
+            <Chip label="Đang dùng" size="small"
+              sx={{ position: 'absolute', top: -12, right: 16, fontWeight: 800, bgcolor: conf.color, color: '#fff', fontSize: 11, height: 24, zIndex: 5 }}
+            />
+          )}
+
+          {/* Gradient header */}
+          <Box sx={{ background: conf.gradient, p: 2.5, borderRadius: '14px 14px 0 0', color: 'white' }}>
+            <Stack direction="row" alignItems="center" spacing={1.2} sx={{ mb: 1.5 }}>
+              <Box sx={{ p: 0.8, bgcolor: 'rgba(255,255,255,.2)', borderRadius: 2 }}>{conf.icon}</Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography sx={{ fontWeight: 900, fontSize: '1rem', lineHeight: 1.2 }}>{plan.name}</Typography>
+                <Typography sx={{ fontSize: '0.72rem', opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{plan.description}</Typography>
+              </Box>
+            </Stack>
+
+            {/* Duration toggle — rendered from opts */}
+            {opts.length > 1 ? (
+              <ToggleButtonGroup
+                value={selDur}
+                exclusive
+                size="small"
+                onChange={(_, v) => v && setDurMap(prev => ({ ...prev, [plan.id]: v }))}
+                sx={{ bgcolor: 'rgba(255,255,255,.15)', borderRadius: 2, p: 0.3, display: 'flex' }}
+              >
+                {opts.map((o: any) => (
+                  <ToggleButton key={o.id} value={o.duration_months}
+                    sx={{ flex: 1, color: 'white', fontWeight: 700, fontSize: '0.7rem', border: 'none !important', borderRadius: '6px !important',
+                      '&.Mui-selected': { bgcolor: 'rgba(255,255,255,.3) !important', color: 'white' } }}>
+                    {durationLabel(o.duration_months)}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+            ) : (
+              <Chip label={durationLabel(activeOpt.duration_months)} size="small"
+                sx={{ bgcolor: 'rgba(255,255,255,.2)', color: 'white', fontWeight: 700, fontSize: '0.72rem' }} />
+            )}
+          </Box>
+
+          {/* Card body */}
+          <Box sx={{ p: 2.5 }}>
+            {/* Price */}
+            <Box sx={{ mb: 2 }}>
+              <Typography sx={{ fontWeight: 900, fontSize: '1.7rem', color: conf.color, lineHeight: 1 }}>
+                {fmt(activeOpt.price)}
+              </Typography>
+              {parseFloat(activeOpt.price) > 0 && (
+                <Typography variant="caption" color="text.disabled" sx={{ fontWeight: 600 }}>
+                  / {durationLabel(activeOpt.duration_months).toLowerCase()}
+                </Typography>
+              )}
+            </Box>
+
+            <Divider sx={{ mb: 1.5, borderStyle: 'dashed' }} />
+
+            {/* Limits & features — all from API */}
+            <Stack spacing={1} sx={{ mb: 2 }}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Storefront sx={{ fontSize: 16, color: conf.color }} />
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  <b>{activeOpt.max_venues}</b> cơ sở · <b>{activeOpt.max_courts_per_venue}</b> sân/cơ sở
+                </Typography>
+              </Stack>
+              {Object.entries(activeOpt.features || {}).map(([k, v]: any) => (
+                <Stack key={k} direction="row" spacing={1} alignItems="center">
+                  {v
+                    ? <CheckCircle sx={{ fontSize: 15, color: conf.color }} />
+                    : <Cancel      sx={{ fontSize: 15, color: '#CBD5E1' }} />}
+                  <Typography variant="body2"
+                    sx={{ fontWeight: 500, color: v ? 'text.primary' : 'text.disabled', fontSize: '0.8rem' }}>
+                    {FEATURE_LABELS[k] || k}
+                  </Typography>
+                </Stack>
+              ))}
+            </Stack>
+
+            {/* CTA */}
+            <Button fullWidth variant={isCurrent ? 'outlined' : 'contained'} size="medium"
+              disabled={isCurrent || purchase.isPending}
+              onClick={() => purchase.mutate(activeOpt.id)}
+              sx={{
+                borderRadius: 2.5, fontWeight: 800, fontSize: '0.82rem',
+                bgcolor: isCurrent ? 'transparent' : conf.color,
+                borderColor: conf.color,
+                color: isCurrent ? conf.color : 'white',
+                '&:hover': { bgcolor: isCurrent ? 'transparent' : conf.color, filter: 'brightness(.9)' },
+              }}>
+              {isCurrent ? 'Đang sử dụng' : isUpgrade ? '⚡ Nâng cấp ngay' : parseFloat(activeOpt.price) === 0 ? 'Gói mặc định' : 'Đăng ký'}
+            </Button>
+          </Box>
+        </Card>
+      </Grid>
+    );
+  };
 
   return (
-    <Box>
-      <Box sx={{ mb: 6 }}>
-        <Typography variant="h3" sx={{ fontWeight: 950, fontFamily: 'Times New Roman', mb: 1, letterSpacing: -1 }}>
-          Gói Dịch Vụ 💎
-        </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ fontWeight: 500 }}>
-          Nâng cấp hệ thống để mở rộng quy mô kinh doanh và tận hưởng các tính năng chuyên nghiệp.
-        </Typography>
-      </Box>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 2.5, px: 0.5 }}>
 
-      {/* Current Subscription Info */}
-      <Paper elevation={0} sx={{ p: 4, mb: 6, borderRadius: 4, bgcolor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-        <Grid container spacing={4} alignItems="center">
-          <Grid item xs={12} md={8}>
-            <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-              <Verified color="primary" sx={{ fontSize: 32 }} />
-              <Typography variant="h5" sx={{ fontWeight: 800 }}>Tình trạng gói hiện tại</Typography>
-            </Stack>
-            
-            {currentSub ? (
-              <Stack direction="row" spacing={4}>
-                <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>GÓI ĐANG DÙNG</Typography>
-                  <Typography variant="h6" color="primary" sx={{ fontWeight: 900 }}>{currentSub.plan.name}</Typography>
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>NGÀY HẾT HẠN</Typography>
-                  <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                    {new Date(currentSub.end_date).toLocaleDateString('vi-VN')}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Chip 
-                    label="Đang hoạt động" 
-                    color="success" 
-                    size="small" 
-                    sx={{ fontWeight: 800, px: 2 }} 
-                  />
-                </Box>
-              </Stack>
-            ) : (
-              <Alert severity="warning" sx={{ borderRadius: 2, fontWeight: 700 }}>
-                Bạn chưa kích hoạt gói dịch vụ nào. Hãy chọn một gói bên dưới để bắt đầu.
-              </Alert>
-            )}
-          </Grid>
-          <Grid item xs={12} md={4} sx={{ textAlign: { md: 'right' } }}>
-             <Button variant="outlined" startIcon={<History />} sx={{ borderRadius: 3, fontWeight: 700 }}>
-                Lịch sử thanh toán
-             </Button>
-          </Grid>
-        </Grid>
-      </Paper>
-
-      <Typography variant="h5" sx={{ fontWeight: 900, mb: 4, textAlign: 'center' }}>
-        Chọn gói phù hợp với nhu cầu của bạn
-      </Typography>
-
-      <Grid container spacing={4}>
-        {plans.map((plan: any) => {
-          const isHighlight = plan.name.includes('Premium') || plan.name.includes('Chuyên');
-          const isCurrent = currentSub?.plan_id === plan.id;
-
-          return (
-            <Grid item xs={12} md={4} key={plan.id}>
-              <Card sx={{ 
-                p: 1, height: '100%', borderRadius: 5, 
-                border: isHighlight ? '2px solid' : '1px solid',
-                borderColor: isHighlight ? 'primary.main' : 'divider',
-                position: 'relative',
-                transition: 'transform 0.3s ease',
-                '&:hover': { transform: 'translateY(-8px)' },
-                boxShadow: isHighlight ? '0 20px 40px rgba(34,197,94,0.15)' : 'none'
-              }}>
-                {isHighlight && (
-                  <Chip 
-                    label="KHUYÊN DÙNG" 
-                    color="primary" 
-                    sx={{ position: 'absolute', top: 16, right: 16, fontWeight: 900, borderRadius: 2 }} 
-                  />
-                )}
-                
-                <Box sx={{ p: 3 }}>
-                  <Typography variant="h5" sx={{ fontWeight: 900, mb: 1 }}>{plan.name}</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ height: 40, mb: 3 }}>
-                    {plan.description}
-                  </Typography>
-
-                  <Box sx={{ display: 'flex', alignItems: 'baseline', mb: 3 }}>
-                    <Typography variant="h3" sx={{ fontWeight: 950, color: 'primary.main' }}>
-                      {new Intl.NumberFormat('vi-VN').format(plan.price)}
-                    </Typography>
-                    <Typography variant="subtitle1" color="text.secondary" sx={{ ml: 1, fontWeight: 700 }}>
-                      đ / {plan.duration_months} tháng
-                    </Typography>
-                  </Box>
-
-                  <Divider sx={{ mb: 3 }} />
-
-                  <Stack spacing={2} sx={{ mb: 4 }}>
-                    <Stack direction="row" spacing={2} alignItems="center">
-                      <Storefront sx={{ color: 'primary.main' }} />
-                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                        Tối đa <strong>{plan.max_venues}</strong> cơ sở địa điểm
-                      </Typography>
-                    </Stack>
-                    <Stack direction="row" spacing={2} alignItems="center">
-                      <SportsTennis sx={{ color: 'primary.main' }} />
-                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                        Tối đa <strong>{plan.max_courts_per_venue}</strong> sân / cơ sở
-                      </Typography>
-                    </Stack>
-                    
-                    {Object.entries(plan.features || {}).map(([key, val]: any) => (
-                      <Stack direction="row" spacing={2} alignItems="center" key={key}>
-                        {val ? <CheckCircle color="success" sx={{ fontSize: 20 }} /> : <CheckCircle color="disabled" sx={{ fontSize: 20, opacity: 0.3 }} />}
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: val ? 'text.primary' : 'text.disabled' }}>
-                          {key === 'analytics' ? 'Báo cáo & Phân tích chuyên sâu' : 
-                           key === 'staff_management' ? 'Quản lý phân quyền nhân viên' : 
-                           key === 'custom_coupons' ? 'Tạo mã giảm giá riêng' : key}
-                        </Typography>
-                      </Stack>
-                    ))}
-                  </Stack>
-
-                  <Button 
-                    fullWidth 
-                    variant={isHighlight ? "contained" : "outlined"}
-                    size="large"
-                    disabled={isCurrent || purchaseMutation.isPending}
-                    onClick={() => purchaseMutation.mutate(plan.id)}
-                    sx={{ py: 1.5, borderRadius: 3, fontWeight: 900 }}
-                  >
-                    {isCurrent ? 'GÓI HIỆN TẠI' : 'NÂNG CẤP NGAY'}
-                  </Button>
-                </Box>
-              </Card>
-            </Grid>
-          );
-        })}
-      </Grid>
-
-      <Box sx={{ mt: 8, p: 4, bgcolor: '#FEFCE8', borderRadius: 4, display: 'flex', gap: 3, alignItems: 'center' }}>
-        <Box sx={{ p: 2, bgcolor: '#FEF9C3', borderRadius: 3 }}>
-           <AccessTime sx={{ color: '#A16207', fontSize: 32 }} />
-        </Box>
+      {/* Header row */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <Box>
-           <Typography variant="h6" sx={{ fontWeight: 800, color: '#854D0E' }}>Chính sách tự động cộng dồn</Typography>
-           <Typography variant="body2" sx={{ color: '#A16207', fontWeight: 500 }}>
-             Nếu bạn nâng cấp khi gói cũ còn hạn, chúng tôi sẽ tự động quy đổi và cộng dồn thời gian sử dụng vào gói mới của bạn.
-           </Typography>
+          <Typography variant="h5" sx={{ fontWeight: 900, letterSpacing: -0.5 }}>
+            Gói dịch vụ 💎
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.3 }}>
+            Chọn gói phù hợp để mở rộng quy mô kinh doanh
+          </Typography>
         </Box>
+
+        {/* Current plan badge */}
+        {currentSub && (
+          <Paper elevation={0} sx={{ px: 2.5, py: 1.5, borderRadius: 3, bgcolor: '#F0F9FF', border: '1px solid #BAE6FD', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Verified sx={{ color: '#0EA5E9', fontSize: 20 }} />
+            <Box>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: '#0369A1', display: 'block', lineHeight: 1 }}>
+                {currentSub.plan?.name}
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#38BDF8', display: 'flex', alignItems: 'center', gap: 0.3, lineHeight: 1.6 }}>
+                <AccessTime sx={{ fontSize: 11 }} />
+                HH đến {currentSub.end_date ? new Date(currentSub.end_date).toLocaleDateString('vi-VN') : '—'}
+              </Typography>
+            </Box>
+          </Paper>
+        )}
       </Box>
+
+      {/* Usage strip — real venue count from OwnerLayout context */}
+      {renderUsageStrip()}
+
+      {/* Plan cards */}
+      <Grid container spacing={2} sx={{ flexGrow: 1, alignItems: 'stretch' }}>
+        {plans.map(renderCard)}
+      </Grid>
     </Box>
   );
-};
-
-export default OwnerSubscription;
+}

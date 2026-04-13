@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import { 
   People, Business, Settings, 
-  Menu as MenuIcon, Logout, Security, AccountBalance,
+  Menu as MenuIcon, Logout, AccountBalance,
   BarChart, Storefront, ConfirmationNumber
 } from '@mui/icons-material';
 import { useState } from 'react';
@@ -26,9 +26,8 @@ const AdminLayout = () => {
   const menuItems = [
     { text: 'Tổng quan hệ thống', icon: <BarChart />, path: '/admin/dashboard' },
     { text: 'Phê duyệt Địa điểm', icon: <Business />, path: '/admin/venues' },
+    { text: 'Quản lý Tài khoản', icon: <People />, path: '/admin/users' },
     { text: 'Quản lý Khuyến mãi', icon: <ConfirmationNumber />, path: '/admin/coupons' },
-    { text: 'Quản lý Chủ sân', icon: <Security />, path: '/admin/owners' },
-    { text: 'Quản lý Người chơi', icon: <People />, path: '/admin/users' },
     { text: 'Tài chính nền tảng', icon: <AccountBalance />, path: '/admin/finance' },
     { text: 'Cấu hình hệ thống', icon: <Settings />, path: '/admin/settings' },
   ];

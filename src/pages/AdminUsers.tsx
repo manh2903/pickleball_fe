@@ -1,18 +1,17 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  Box, Card, Typography, TextField, Table, TableBody, 
-  TableCell, TableContainer, TableHead, TableRow,
-  IconButton, Chip, Stack, MenuItem, CircularProgress,
-  Tooltip, Avatar, Pagination
+  Box, Card, Typography, TextField, 
+  IconButton, Chip, Stack, MenuItem, 
+  Tooltip, Avatar, Tabs, Tab
 } from '@mui/material';
 import { 
   Search, Block, CheckCircle, Visibility, 
-  Email, Phone as PhoneIcon, Person, 
-  Security, Badge, Wallet, Loyalty
+  Email, Phone as PhoneIcon, Security, Badge, Wallet
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { adminApi } from '@/api/adminApi';
+import DataTable, { Column } from '@/components/DataTable';
 
 const AdminUsers = () => {
   const queryClient = useQueryClient();
@@ -21,15 +20,16 @@ const AdminUsers = () => {
   const [role, setRole] = useState('');
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(0); // DataTable uses 0-based paging for MUI TablePagination logic usually, or I adapt.
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const { data: usersRes, isLoading } = useQuery({
-    queryKey: ['admin-users', role, status, search, page],
-    queryFn: () => adminApi.getUsers({ role, status, search, page, limit: 10 })
+    queryKey: ['admin-users', role, status, search, page, rowsPerPage],
+    queryFn: () => adminApi.getUsers({ role, status, search, page: page + 1, limit: rowsPerPage })
   });
 
   const users = usersRes?.data?.users || [];
-  const totalPages = usersRes?.data?.totalPages || 1;
+  const totalUsers = usersRes?.data?.total || 0;
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number, status: string }) => adminApi.updateUserStatus(id, status),
@@ -47,180 +47,158 @@ const AdminUsers = () => {
     }
   };
 
-  const getStatusChip = (status: string) => {
-    return status === 'active' 
-      ? <Chip label="Đang hoạt động" color="success" size="small" variant="outlined" />
-      : <Chip label="Đã khóa" color="default" size="small" />;
-  };
+  const columns: Column<any>[] = [
+    {
+      key: 'info',
+      label: 'Thông tin cá nhân',
+      render: (user: any) => (
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Avatar src={user.avatar} sx={{ bgcolor: 'secondary.light', color: 'secondary.main', fontWeight: 800 }}>
+            {user.name?.charAt(0)}
+          </Avatar>
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>{user.name}</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
+                <Email sx={{ fontSize: 12, mr: 0.5 }} /> {user.email}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
+                <PhoneIcon sx={{ fontSize: 12, mr: 0.5 }} /> {user.phone || 'N/A'}
+              </Typography>
+            </Box>
+          </Box>
+        </Stack>
+      )
+    },
+    {
+      key: 'role',
+      label: 'Vai trò',
+      render: (user: any) => getRoleChip(user.role)
+    },
+    {
+      key: 'finance',
+      label: 'Số dư ví',
+      render: (user: any) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: '#F1F5F9', px: 1, py: 0.5, borderRadius: 1, width: 'fit-content' }}>
+          <Wallet sx={{ fontSize: 14, mr: 0.5, color: 'primary.main' }} />
+          <Typography variant="caption" sx={{ fontWeight: 700 }}>
+            {new Intl.NumberFormat('vi-VN').format(user.wallet_balance || 0)}đ
+          </Typography>
+        </Box>
+      )
+    },
+    {
+      key: 'status',
+      label: 'Trạng thái',
+      render: (user: any) => (
+        <Chip 
+          label={user.status === 'active' ? 'Đang hoạt động' : 'Đã khóa'} 
+          color={user.status === 'active' ? 'success' : 'default'} 
+          size="small" 
+          variant="outlined" 
+          sx={{ fontWeight: 700 }}
+        />
+      )
+    },
+    {
+      key: 'actions',
+      label: 'Hành động',
+      align: 'right',
+      render: (user: any) => (
+        <Stack direction="row" spacing={1} justifyContent="flex-end">
+          {user.status === 'active' ? (
+            <Tooltip title="Khóa tài khoản">
+              <IconButton 
+                color="error" size="small"
+                onClick={() => updateStatusMutation.mutate({ id: user.id, status: 'inactive' })}
+                disabled={updateStatusMutation.isPending || user.role === 'admin'}
+              >
+                <Block />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <Tooltip title="Mở khóa tài khoản">
+              <IconButton 
+                color="success" size="small"
+                onClick={() => updateStatusMutation.mutate({ id: user.id, status: 'active' })}
+                disabled={updateStatusMutation.isPending}
+              >
+                <CheckCircle />
+              </IconButton>
+            </Tooltip>
+          )}
+          <Tooltip title="Xem chi tiết">
+            <IconButton size="small">
+              <Visibility fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      )
+    }
+  ];
 
   return (
     <Box>
-      <Card sx={{ p: 4, borderRadius: 1.5 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, flexWrap: 'wrap', gap: 2 }}>
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 800 }}>Quản trị Người dùng Hệ thống 👤</Typography>
-            <Typography variant="body2" color="text.secondary">Quản lý và kiểm soát toàn bộ tài khoản trên nền tảng Pickleball Court Marketplace.</Typography>
-          </Box>
-          <Stack direction="row" spacing={2} sx={{ flexGrow: 1, justifyContent: 'flex-end', minWidth: 300 }}>
-            <TextField 
-              size="small" 
-              placeholder="Tìm tên, email, sđt..." 
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              InputProps={{ startAdornment: <Search sx={{ color: 'text.disabled', mr: 1 }} /> }}
-              sx={{ minWidth: 250 }}
-            />
-            <TextField 
-              select 
-              size="small" 
-              label="Vai trò" 
-              value={role}
-              onChange={(e) => { setRole(e.target.value); setPage(1); }}
-              sx={{ minWidth: 120 }}
-            >
-              <MenuItem value="">Tất cả</MenuItem>
-              <MenuItem value="user">Người dùng</MenuItem>
-              <MenuItem value="owner">Chủ sân</MenuItem>
-              <MenuItem value="admin">Admin</MenuItem>
-            </TextField>
-            <TextField 
-              select 
-              size="small" 
-              label="Trạng thái" 
-              value={status}
-              onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-              sx={{ minWidth: 120 }}
-            >
-              <MenuItem value="">Tất cả</MenuItem>
-              <MenuItem value="active">Đang hoạt động</MenuItem>
-              <MenuItem value="inactive">Đã khóa</MenuItem>
-            </TextField>
-          </Stack>
+      <Typography variant="h5" sx={{ fontWeight: 950, mb: 1, letterSpacing: -1 }}>
+        Quản lý Tài khoản 👥
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 4, fontWeight: 500 }}>
+        Quản trị toàn bộ Khách hàng, Chủ sân và Cộng tác viên trên nền tảng.
+      </Typography>
+
+      <Card sx={{ p: 0, borderRadius: 3, border: '1px solid #E2E8F0', boxShadow: 'none', overflow: 'hidden' }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 3, pt: 2, bgcolor: '#F8FAFC' }}>
+          <Tabs 
+            value={role} 
+            onChange={(_, val) => { setRole(val); setPage(0); }}
+            sx={{ '& .MuiTab-root': { fontWeight: 800, textTransform: 'none', minWidth: 100 } }}
+          >
+            <Tab label="Tất cả" value="" />
+            <Tab label="Người chơi" value="user" />
+            <Tab label="Chủ sân" value="owner" />
+            <Tab label="Quản trị viên" value="admin" />
+          </Tabs>
         </Box>
 
-        {isLoading ? (
-          <Box sx={{ py: 10, textAlign: 'center' }}><CircularProgress /></Box>
-        ) : (
-          <>
-            <TableContainer>
-              <Table>
-                <TableHead sx={{ bgcolor: '#F8FAFC' }}>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 700 }}>Thông tin cá nhân</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Vai trò</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Số dư / Điểm</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Ngày gia nhập</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Trạng thái</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }} align="right">Hành động</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {users.map((user: any) => (
-                    <TableRow key={user.id} hover>
-                      <TableCell>
-                        <Stack direction="row" spacing={1.5} alignItems="center">
-                          <Avatar src={user.avatar} sx={{ bgcolor: 'secondary.light', color: 'secondary.main', fontWeight: 800 }}>
-                            {user.name?.charAt(0)}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 700 }}>{user.name}</Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
-                                <Email sx={{ fontSize: 12, mr: 0.5 }} /> {user.email}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
-                                <PhoneIcon sx={{ fontSize: 12, mr: 0.5 }} /> {user.phone || 'N/A'}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </Stack>
-                      </TableCell>
-                      <TableCell>{getRoleChip(user.role)}</TableCell>
-                      <TableCell>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: '#F1F5F9', px: 1, py: 0.5, borderRadius: 1 }}>
-                            <Wallet sx={{ fontSize: 14, mr: 0.5, color: 'primary.main' }} />
-                            <Typography variant="caption" sx={{ fontWeight: 700 }}>
-                              {new Intl.NumberFormat('vi-VN').format(user.wallet_balance || 0)}đ
-                            </Typography>
-                          </Box>
-                          <Typography variant="caption" color="text.secondary">| {user.points || 0} pts</Typography>
-                        </Stack>
-                        <Stack direction="row" alignItems="center" sx={{ mt: 1 }}>
-                          <Loyalty sx={{ mr: 1, color: 
-                            user?.member_rank === 'platinum' ? '#E5E4E2' : 
-                            user?.member_rank === 'gold' ? '#FFD700' : 
-                            user?.member_rank === 'silver' ? '#C0C0C0' : '#CD7F32'
-                          , fontSize: '1.2rem' }} />
-                          <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                            Hạng: {
-                              user?.member_rank === 'platinum' ? 'Bạch Kim' :
-                              user?.member_rank === 'gold' ? 'Vàng' :
-                              user?.member_rank === 'silver' ? 'Bạc' : 'Đồng'
-                            }
-                          </Typography>
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="caption">{new Date(user.createdAt).toLocaleDateString('vi-VN')}</Typography>
-                      </TableCell>
-                      <TableCell>{getStatusChip(user.status)}</TableCell>
-                      <TableCell align="right">
-                        <Stack direction="row" spacing={1} justifyContent="flex-end">
-                          {user.status === 'active' ? (
-                            <Tooltip title="Khóa tài khoản">
-                              <IconButton 
-                                color="error" size="small"
-                                onClick={() => updateStatusMutation.mutate({ id: user.id, status: 'inactive' })}
-                                disabled={updateStatusMutation.isPending || user.role === 'admin'}
-                              >
-                                <Block />
-                              </IconButton>
-                            </Tooltip>
-                          ) : (
-                            <Tooltip title="Mở khóa tài khoản">
-                              <IconButton 
-                                color="success" size="small"
-                                onClick={() => updateStatusMutation.mutate({ id: user.id, status: 'active' })}
-                                disabled={updateStatusMutation.isPending}
-                              >
-                                <CheckCircle />
-                              </IconButton>
-                            </Tooltip>
-                          )}
-                          <Tooltip title="Xem chi tiết">
-                            <IconButton size="small">
-                              <Visibility fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {users.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={6} align="center" sx={{ py: 10 }}>
-                        <Person sx={{ fontSize: 40, color: 'text.disabled', mb: 2 }} />
-                        <Typography color="text.secondary">Không tìm thấy người dùng nào phù hợp kết quả tìm kiếm.</Typography>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-              <Pagination 
-                count={totalPages} 
-                page={page} 
-                onChange={(_, val) => setPage(val)} 
-                color="primary" 
-                size="large"
-                sx={{ '& .MuiPaginationItem-root': { fontWeight: 700 } }}
-              />
-            </Box>
-          </>
-        )}
+        <Box sx={{ p: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <TextField 
+            size="small" 
+            placeholder="Tìm tên, email, sđt..." 
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+            InputProps={{ 
+               startAdornment: <Search sx={{ color: 'text.disabled', mr: 1 }} />,
+               sx: { borderRadius: 2 }
+            }}
+            sx={{ flexGrow: 1, maxWidth: 400 }}
+          />
+          <Box sx={{ flexGrow: 1 }} />
+          <TextField 
+            select 
+            size="small" 
+            label="Trạng thái" 
+            value={status}
+            onChange={(e) => { setStatus(e.target.value); setPage(0); }}
+            sx={{ minWidth: 150, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+          >
+            <MenuItem value="">Tất cả trạng thái</MenuItem>
+            <MenuItem value="active">Đang hoạt động</MenuItem>
+            <MenuItem value="inactive">Đã khóa</MenuItem>
+          </TextField>
+        </Box>
+
+        <Box sx={{ px: 3, pb: 3 }}>
+          <DataTable 
+            columns={columns}
+            data={users}
+            isLoading={isLoading}
+            count={totalUsers}
+            page={page}
+            rowsPerPage={rowsPerPage}
+            onPageChange={(_, newPage) => setPage(newPage)}
+            onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+          />
+        </Box>
       </Card>
     </Box>
   );

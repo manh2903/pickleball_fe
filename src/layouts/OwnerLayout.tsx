@@ -15,6 +15,7 @@ import {
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ownerApi } from '@/api/ownerApi';
+import { subscriptionApi } from '@/api/subscriptionApi';
 import { useAuthStore } from '@/stores/authStore';
 import HeaderNotificationBell from '@/components/NotificationBell';
 
@@ -44,10 +45,18 @@ const OwnerLayout = () => {
     navigate('/login');
   };
 
-  // Multi-venue support (Tier 1)
+  // Multi-venue support
   const { data: venuesRes } = useQuery({ queryKey: ['owner-venues'], queryFn: () => ownerApi.getVenues() });
   const venues = venuesRes?.data || [];
   const [activeVenueId, setActiveVenueId] = useState<string | number | ''>('');
+
+  // Fetch current subscription for feature gating
+  const { data: subRes } = useQuery({ 
+    queryKey: ['my-subscription'], 
+    queryFn: subscriptionApi.getMySubscription 
+  });
+  const currentSub = subRes?.data;
+  const features = currentSub?.option?.features || {};
 
   useEffect(() => {
     if (venues.length > 0 && !activeVenueId) {
@@ -73,7 +82,7 @@ const OwnerLayout = () => {
         { text: 'Tổng quan', icon: <Dashboard />, path: '/owner/dashboard' },
         { text: 'Lịch đặt sân', icon: <EventNote />, path: '/owner/bookings' },
         { text: 'Quản lý sân', icon: <SportsTennis />, path: '/owner/courts' },
-        { text: 'Nhân viên', icon: <BadgeIcon />, path: '/owner/staffs' },
+        { text: 'Nhân viên', icon: <BadgeIcon />, path: '/owner/staffs', feature: 'staff_management' },
       ]
     },
     {
@@ -86,8 +95,8 @@ const OwnerLayout = () => {
     {
       title: 'KHÁCH HÀNG',
       items: [
-        { text: 'Khuyến mãi', icon: <ConfirmationNumber />, path: '/owner/coupons' },
-        { text: 'Đánh giá', icon: <Star />, path: `/owner/reviews/${activeVenueId}` },
+        { text: 'Khuyến mãi', icon: <ConfirmationNumber />, path: '/owner/coupons', feature: 'custom_coupons' },
+        { text: 'Đánh giá', icon: <Star />, path: `/owner/reviews/${activeVenueId}`, feature: 'analytics' },
       ]
     },
     {
@@ -127,58 +136,65 @@ const OwnerLayout = () => {
       </Box>
 
       <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 2, pb: 4 }}>
-        {menuGroups.map((group) => (
-          <Box key={group.title} sx={{ mb: 3 }}>
-            <Typography 
-              variant="caption" 
-              sx={{ 
-                px: 2, mb: 1, display: 'block', fontWeight: 900, 
-                color: 'text.disabled', letterSpacing: 1.5 
-              }}
-            >
-              {group.title}
-            </Typography>
-            <List disablePadding>
-              {group.items.map((item) => {
-                const isActive = location.pathname === item.path;
-                return (
-                  <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
-                    <ListItemButton 
-                      component={Link} 
-                      to={item.path}
-                      selected={isActive}
-                      onClick={() => isMobile && setMobileOpen(false)}
-                      sx={{
-                        borderRadius: 2,
-                        py: 1.2,
-                        bgcolor: isActive ? 'primary.main' : 'transparent',
-                        color: isActive ? 'white' : 'text.secondary',
-                        '&.Mui-selected': {
-                          bgcolor: 'primary.main',
-                          color: 'white',
-                          boxShadow: '0 10px 15px -3px rgba(34,197,94,0.25)',
-                          '&:hover': { bgcolor: 'primary.dark' },
-                          '& .MuiListItemIcon-root': { color: 'white' }
-                        },
-                        '&:hover': {
-                          bgcolor: isActive ? 'primary.dark' : 'rgba(0,0,0,0.03)',
-                        }
-                      }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 40, color: isActive ? 'white' : 'inherit' }}>
-                        {item.icon}
-                      </ListItemIcon>
-                      <ListItemText 
-                        primary={item.text} 
-                        primaryTypographyProps={{ fontWeight: isActive ? 900 : 600, fontSize: '0.88rem' }} 
-                      />
-                    </ListItemButton>
-                  </ListItem>
-                );
-              })}
-            </List>
-          </Box>
-        ))}
+        {menuGroups.map((group) => {
+          // Filter items based on subscription features
+          const visibleItems = group.items.filter(item => !item.feature || features[item.feature]);
+          
+          if (visibleItems.length === 0) return null;
+
+          return (
+            <Box key={group.title} sx={{ mb: 3 }}>
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  px: 2, mb: 1, display: 'block', fontWeight: 900, 
+                  color: 'text.disabled', letterSpacing: 1.5 
+                }}
+              >
+                {group.title}
+              </Typography>
+              <List disablePadding>
+                {visibleItems.map((item) => {
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+                      <ListItemButton 
+                        component={Link} 
+                        to={item.path}
+                        selected={isActive}
+                        onClick={() => isMobile && setMobileOpen(false)}
+                        sx={{
+                          borderRadius: 2,
+                          py: 1.2,
+                          bgcolor: isActive ? 'primary.main' : 'transparent',
+                          color: isActive ? 'white' : 'text.secondary',
+                          '&.Mui-selected': {
+                            bgcolor: 'primary.main',
+                            color: 'white',
+                            boxShadow: '0 10px 15px -3px rgba(34,197,94,0.25)',
+                            '&:hover': { bgcolor: 'primary.dark' },
+                            '& .MuiListItemIcon-root': { color: 'white' }
+                          },
+                          '&:hover': {
+                            bgcolor: isActive ? 'primary.dark' : 'rgba(0,0,0,0.03)',
+                          }
+                        }}
+                      >
+                        <ListItemIcon sx={{ minWidth: 40, color: isActive ? 'white' : 'inherit' }}>
+                          {item.icon}
+                        </ListItemIcon>
+                        <ListItemText 
+                          primary={item.text} 
+                          primaryTypographyProps={{ fontWeight: isActive ? 900 : 600, fontSize: '0.88rem' }} 
+                        />
+                      </ListItemButton>
+                    </ListItem>
+                  );
+                })}
+              </List>
+            </Box>
+          );
+        })}
       </Box>
       
       <Box sx={{ mt: 'auto', p: 3 }}>
@@ -321,7 +337,7 @@ const OwnerLayout = () => {
         </Box>
 
         <Box sx={{ p: { xs: 2, md: 4 }, flexGrow: 1 }}>
-          <Outlet context={{ venueId: activeVenueId }} />
+          <Outlet context={{ venueId: activeVenueId, venues }} />
         </Box>
       </Box>
     </Box>
