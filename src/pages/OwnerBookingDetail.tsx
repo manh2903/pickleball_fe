@@ -225,18 +225,6 @@ const OwnerBookingDetail = () => {
                   {booking.payment_status === 'paid' ? 'ĐÃ QUYẾT TOÁN' : 'CHƯA THANH TOÁN'}
                </Typography>
             </Box>
-
-            <Box sx={{ mt: 3, p: 2, bgcolor: '#EFF6FF', borderRadius: 2 }}>
-               <Typography variant="caption" color="primary.main" sx={{ fontWeight: 800, display: 'block', mb: 1 }}>
-                  DOANH THU THỰC NHẬN (OWNER)
-               </Typography>
-               <Typography variant="h5" sx={{ fontWeight: 950, color: 'primary.dark' }}>
-                  {parseInt(booking.owner_revenue).toLocaleString()}đ
-               </Typography>
-               <Typography variant="caption" color="text.secondary">
-                  Đã trừ {booking.commission_rate}% phí sàn ({parseInt(booking.commission_amount).toLocaleString()}đ)
-               </Typography>
-            </Box>
           </Card>
         </Grid>
       </Grid>

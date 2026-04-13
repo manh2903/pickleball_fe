@@ -110,7 +110,6 @@ const OwnerBookings = () => {
           <Typography variant="body2" sx={{ fontWeight: 900 }}>
             {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(row.total_price)}
           </Typography>
-          <Typography variant="caption" color="red">Thực nhận: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(row.owner_revenue)}</Typography>
         </Box>
       )
     },

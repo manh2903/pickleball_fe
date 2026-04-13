@@ -30,7 +30,6 @@ import OwnerIncidents from './pages/OwnerIncidents';
 import OwnerWallet from '@/pages/OwnerWallet';
 import OwnerSettings from './pages/OwnerSettings';
 import OwnerSubscription from './pages/OwnerSubscription';
-import OwnerReports from './pages/OwnerReports';
 import OwnerReviewsPage from './pages/owner/OwnerReviewsPage';
 import OwnerCoupons from './pages/OwnerCoupons';
 
@@ -87,7 +86,6 @@ function App() {
             <Route path="subscription" element={<OwnerSubscription />} />
             <Route path="wallet" element={<OwnerWallet />} />
             <Route path="settings" element={<OwnerSettings />} />
-            <Route path="reports" element={<OwnerReports />} />
             <Route path="coupons" element={<OwnerCoupons />} />
             <Route path="reviews/:venueId" element={<OwnerReviewsPage />} />
           </Route>
