@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Box, Card, Typography, TextField, MenuItem, Stack, Chip
+  Box, Typography, TextField, MenuItem, Stack, Chip
 } from '@mui/material';
-import { Search } from '@mui/icons-material';
+import { Search, Refresh } from '@mui/icons-material';
 import { adminApi } from '@/api/adminApi';
 import DataTable, { Column } from '@/components/DataTable';
+import AdminFilterBar from '@/components/AdminFilterBar';
 
 const bookingStatusMap: Record<string, { label: string; color: 'default' | 'success' | 'warning' | 'error' | 'info' }> = {
   pending: { label: 'Chờ xử lý', color: 'warning' },
@@ -155,42 +156,43 @@ const AdminBookings = () => {
         Theo dõi booking online, walk-in, trạng thái vận hành và thanh toán toàn nền tảng.
       </Typography>
 
-      <Card sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', boxShadow: 'none' }}>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 4, flexWrap: 'wrap' }}>
-          <TextField
-            size="small"
-            placeholder="Tìm mã đơn, khách hàng, cơ sở..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            InputProps={{
-              startAdornment: <Search sx={{ color: 'text.disabled', mr: 1 }} />,
-              sx: { borderRadius: 2 }
-            }}
-            sx={{ flexGrow: 1, minWidth: 280 }}
-          />
-          <TextField select size="small" label="Booking" value={status} onChange={(e) => { setStatus(e.target.value); setPage(0); }} sx={{ minWidth: 180 }}>
-            <MenuItem value="all">Tất cả trạng thái</MenuItem>
-            <MenuItem value="pending">Chờ xử lý</MenuItem>
-            <MenuItem value="confirmed">Đã xác nhận</MenuItem>
-            <MenuItem value="checked_in">Đã check-in</MenuItem>
-            <MenuItem value="completed">Hoàn thành</MenuItem>
-            <MenuItem value="cancelled">Đã hủy</MenuItem>
-            <MenuItem value="no_show">Không đến</MenuItem>
-          </TextField>
-          <TextField select size="small" label="Thanh toán" value={paymentStatus} onChange={(e) => { setPaymentStatus(e.target.value); setPage(0); }} sx={{ minWidth: 180 }}>
-            <MenuItem value="all">Tất cả thanh toán</MenuItem>
-            <MenuItem value="unpaid">Chưa thanh toán</MenuItem>
-            <MenuItem value="partial">Một phần</MenuItem>
-            <MenuItem value="paid">Đã thanh toán</MenuItem>
-            <MenuItem value="refunded">Đã hoàn tiền</MenuItem>
-          </TextField>
-          <TextField select size="small" label="Loại đơn" value={bookingType} onChange={(e) => { setBookingType(e.target.value); setPage(0); }} sx={{ minWidth: 150 }}>
-            <MenuItem value="all">Tất cả loại</MenuItem>
-            <MenuItem value="online">Online</MenuItem>
-            <MenuItem value="walkin">Walk-in</MenuItem>
-          </TextField>
-        </Stack>
+      <AdminFilterBar
+        search={search}
+        onSearchChange={(val: string) => { setSearch(val); setPage(0); }}
+        searchPlaceholder="Tìm mã đơn, khách hàng, cơ sở..."
+        onReset={() => {
+          setSearch('');
+          setStatus('all');
+          setPaymentStatus('all');
+          setBookingType('all');
+          setPage(0);
+        }}
+        disableReset={search === '' && status === 'all' && paymentStatus === 'all' && bookingType === 'all'}
+      >
+        <TextField select size="small" label="Trạng thái" value={status} onChange={(e) => { setStatus(e.target.value); setPage(0); }} sx={{ minWidth: 160 }}>
+          <MenuItem value="all">Tất cả trạng thái</MenuItem>
+          <MenuItem value="pending">Chờ xử lý</MenuItem>
+          <MenuItem value="confirmed">Đã xác nhận</MenuItem>
+          <MenuItem value="checked_in">Đã check-in</MenuItem>
+          <MenuItem value="completed">Hoàn thành</MenuItem>
+          <MenuItem value="cancelled">Đã hủy</MenuItem>
+          <MenuItem value="no_show">Không đến</MenuItem>
+        </TextField>
+        <TextField select size="small" label="Thanh toán" value={paymentStatus} onChange={(e) => { setPaymentStatus(e.target.value); setPage(0); }} sx={{ minWidth: 160 }}>
+          <MenuItem value="all">Tất cả thanh toán</MenuItem>
+          <MenuItem value="unpaid">Chưa thanh toán</MenuItem>
+          <MenuItem value="partial">Một phần</MenuItem>
+          <MenuItem value="paid">Đã thanh toán</MenuItem>
+          <MenuItem value="refunded">Đã hoàn tiền</MenuItem>
+        </TextField>
+        <TextField select size="small" label="Loại đơn" value={bookingType} onChange={(e) => { setBookingType(e.target.value); setPage(0); }} sx={{ minWidth: 140 }}>
+          <MenuItem value="all">Tất cả loại</MenuItem>
+          <MenuItem value="online">Online</MenuItem>
+          <MenuItem value="walkin">Walk-in</MenuItem>
+        </TextField>
+      </AdminFilterBar>
 
+      <Box sx={{ mt: 3 }}>
         <DataTable
           columns={columns}
           data={bookings}
@@ -202,7 +204,7 @@ const AdminBookings = () => {
           onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
           emptyMessage="Chưa có booking nào phù hợp bộ lọc."
         />
-      </Card>
+      </Box>
     </Box>
   );
 };

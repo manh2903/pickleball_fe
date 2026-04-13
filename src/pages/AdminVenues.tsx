@@ -7,11 +7,12 @@ import {
 } from '@mui/material';
 import { 
   CheckCircle, Cancel, 
-  Visibility, Search
+  Visibility
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { adminApi } from '@/api/adminApi';
 import DataTable, { Column } from '@/components/DataTable';
+import AdminFilterBar from '@/components/AdminFilterBar';
 
 const AdminVenues = () => {
   const queryClient = useQueryClient();
@@ -142,34 +143,33 @@ const AdminVenues = () => {
       </Typography>
 
       <Card sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', boxShadow: 'none' }}>
-        <Stack direction="row" spacing={2} sx={{ mb: 4 }}>
-          <TextField 
-            size="small" 
-            placeholder="Tìm tên sân, địa chỉ..." 
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            InputProps={{ 
-               startAdornment: <Search sx={{ color: 'text.disabled', mr: 1 }} />,
-               sx: { borderRadius: 2 }
-            }}
-            sx={{ flexGrow: 1, maxWidth: 400 }}
-          />
-          <Box sx={{ flexGrow: 1 }} />
-          <TextField 
-            select 
-            size="small" 
-            label="Trạng thái" 
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-            sx={{ minWidth: 200, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-          >
-            <MenuItem value="">Tất cả trạng thái</MenuItem>
-            <MenuItem value="active">Đang hoạt động</MenuItem>
-            <MenuItem value="pending_review">Chờ duyệt</MenuItem>
-            <MenuItem value="suspended">Đã đình chỉ</MenuItem>
-          </TextField>
-        </Stack>
+      <AdminFilterBar
+        search={search}
+        onSearchChange={(val: string) => { setSearch(val); setPage(0); }}
+        searchPlaceholder="Tìm tên sân, địa chỉ..."
+        onReset={() => {
+          setSearch('');
+          setStatusFilter('');
+          setPage(0);
+        }}
+        disableReset={search === '' && statusFilter === ''}
+      >
+        <TextField 
+          select 
+          size="small" 
+          label="Trạng thái" 
+          value={statusFilter}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+          sx={{ minWidth: 200, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+        >
+          <MenuItem value="">Tất cả trạng thái</MenuItem>
+          <MenuItem value="active">Đang hoạt động</MenuItem>
+          <MenuItem value="pending_review">Chờ duyệt</MenuItem>
+          <MenuItem value="suspended">Đã đình chỉ</MenuItem>
+        </TextField>
+      </AdminFilterBar>
 
+      <Box sx={{ mt: 3 }}>
         <DataTable 
           columns={columns}
           data={venues}
@@ -180,6 +180,7 @@ const AdminVenues = () => {
           onPageChange={(_, newPage) => setPage(newPage)}
           onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
         />
+      </Box>
       </Card>
     </Box>
   );

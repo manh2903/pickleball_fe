@@ -4,10 +4,11 @@ import {
   Box, Typography, Card, TextField, MenuItem, Stack, Chip,
   IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Button
 } from '@mui/material';
-import { Search, Visibility, CheckCircle, Close } from '@mui/icons-material';
+import { Visibility, CheckCircle, Close } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { adminApi } from '@/api/adminApi';
 import DataTable, { Column } from '@/components/DataTable';
+import AdminFilterBar from '@/components/AdminFilterBar';
 
 const statusColors: any = {
   open: 'error',
@@ -160,33 +161,34 @@ const AdminIncidents = () => {
       </Typography>
 
       <Card sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', boxShadow: 'none' }}>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 4, flexWrap: 'wrap' }}>
-          <TextField
-            size="small"
-            placeholder="Tìm sự cố, cơ sở, người báo..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            InputProps={{
-              startAdornment: <Search sx={{ color: 'text.disabled', mr: 1 }} />,
-              sx: { borderRadius: 2 }
-            }}
-            sx={{ flexGrow: 1, minWidth: 280 }}
-          />
-          <TextField select size="small" label="Trạng thái" value={status} onChange={(e) => { setStatus(e.target.value); setPage(0); }} sx={{ minWidth: 180 }}>
-            <MenuItem value="all">Tất cả trạng thái</MenuItem>
-            <MenuItem value="open">Mới mở</MenuItem>
-            <MenuItem value="in_progress">Đang xử lý</MenuItem>
-            <MenuItem value="resolved">Đã xử lý</MenuItem>
-            <MenuItem value="closed">Đã đóng</MenuItem>
-          </TextField>
-          <TextField select size="small" label="Mức độ" value={severity} onChange={(e) => { setSeverity(e.target.value); setPage(0); }} sx={{ minWidth: 180 }}>
-            <MenuItem value="all">Tất cả mức độ</MenuItem>
-            <MenuItem value="low">Thấp</MenuItem>
-            <MenuItem value="medium">Trung bình</MenuItem>
-            <MenuItem value="high">Cao</MenuItem>
-          </TextField>
-        </Stack>
+      <AdminFilterBar
+        search={search}
+        onSearchChange={(val: string) => { setSearch(val); setPage(0); }}
+        searchPlaceholder="Tìm sự cố, cơ sở, người báo..."
+        onReset={() => {
+          setSearch('');
+          setStatus('all');
+          setSeverity('all');
+          setPage(0);
+        }}
+        disableReset={search === '' && status === 'all' && severity === 'all'}
+      >
+        <TextField select size="small" label="Trạng thái" value={status} onChange={(e) => { setStatus(e.target.value); setPage(0); }} sx={{ minWidth: 160 }}>
+          <MenuItem value="all">Tất cả trạng thái</MenuItem>
+          <MenuItem value="open">Mới mở</MenuItem>
+          <MenuItem value="in_progress">Đang xử lý</MenuItem>
+          <MenuItem value="resolved">Đã xử lý</MenuItem>
+          <MenuItem value="closed">Đã đóng</MenuItem>
+        </TextField>
+        <TextField select size="small" label="Mức độ" value={severity} onChange={(e) => { setSeverity(e.target.value); setPage(0); }} sx={{ minWidth: 160 }}>
+          <MenuItem value="all">Tất cả mức độ</MenuItem>
+          <MenuItem value="low">Thấp</MenuItem>
+          <MenuItem value="medium">Trung bình</MenuItem>
+          <MenuItem value="high">Cao</MenuItem>
+        </TextField>
+      </AdminFilterBar>
 
+      <Box sx={{ mt: 3 }}>
         <DataTable
           columns={columns}
           data={incidents}
@@ -198,6 +200,7 @@ const AdminIncidents = () => {
           onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
           emptyMessage="Chưa có sự cố nào phù hợp bộ lọc."
         />
+      </Box>
       </Card>
 
       <Dialog open={openDetail} onClose={() => setOpenDetail(false)} maxWidth="sm" fullWidth>

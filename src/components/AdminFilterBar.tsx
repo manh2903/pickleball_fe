@@ -22,15 +22,20 @@ const AdminFilterBar = ({
   return (
     <Card
       sx={{
-        p: 2.5,
+        p: 1.25,
+        px: 2,
         borderRadius: 2.5,
         display: 'flex',
         gap: 1.5,
-        flexWrap: 'wrap',
+        flexWrap: 'nowrap', // Giữ theo hàng ngang
         alignItems: 'center',
-        bgcolor: '#F8FAFC',
-        border: '1px solid #E2E8F0',
-        boxShadow: 'none',
+        bgcolor: 'white',
+        border: '1px solid #F1F5F9',
+        boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
+        overflowX: 'auto', // Cho phép scroll ngang nếu quá nhiều filter trên màn nhỏ
+        '&::-webkit-scrollbar': { display: 'none' }, // Ẩn scrollbar để đẹp hơn
+        msOverflowStyle: 'none',
+        scrollbarWidth: 'none',
       }}
     >
       {onSearchChange && (
@@ -40,25 +45,42 @@ const AdminFilterBar = ({
           value={search || ''}
           onChange={(e) => onSearchChange(e.target.value)}
           InputProps={{
-            startAdornment: <Search sx={{ color: 'text.disabled', mr: 1, fontSize: 20 }} />,
-            sx: { borderRadius: 2, bgcolor: 'white' },
+            startAdornment: <Search sx={{ color: 'text.disabled', mr: 1, fontSize: 18 }} />,
+            sx: { 
+              borderRadius: 2, 
+              bgcolor: '#F8FAFC',
+              fontSize: '0.85rem',
+              height: 38,
+              '& fieldset': { border: 'none' },
+              '&:hover fieldset': { border: 'none' },
+              '&.Mui-focused fieldset': { border: '1px solid', borderColor: 'primary.main' },
+            },
           }}
-          sx={{ flexGrow: 1, minWidth: 280, maxWidth: 360 }}
+          sx={{ minWidth: 240, maxWidth: 320 }}
         />
       )}
 
-      <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center', ml: onSearchChange ? 'auto' : 0 }}>
+      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', ml: 'auto' }}>
         {children}
         {onReset && (
           <Button
-            variant="outlined"
+            variant="text"
             size="small"
-            startIcon={<Refresh />}
+            startIcon={<Refresh sx={{ fontSize: 18 }} />}
             onClick={onReset}
             disabled={disableReset}
-            sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none', height: 40 }}
+            sx={{ 
+              borderRadius: 2, 
+              fontWeight: 800, 
+              textTransform: 'none', 
+              height: 38,
+              px: 2,
+              color: 'text.secondary',
+              whiteSpace: 'nowrap',
+              '&:hover': { bgcolor: '#F1F5F9' }
+            }}
           >
-            Reset
+            Làm mới
           </Button>
         )}
       </Box>

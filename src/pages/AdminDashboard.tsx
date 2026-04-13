@@ -68,12 +68,12 @@ const AdminDashboard = () => {
   }, [queryClient, enqueueSnackbar]);
 
   const stats = statsRes?.data || {
-    totalRevenue: 345000000,
-    totalBookings: 842,
-    activeVenues: 12,
-    newUsers: 156,
-    recentVenues: [],
-    platformRevenue: 34500000 // 10% commission
+    totalVolume: 0,
+    subscriptionRevenue: 0,
+    totalBookings: 0,
+    activeVenues: 0,
+    newUsers: 0,
+    recentVenues: []
   };
 
   if (isLoading) return <Box sx={{ py: 10, textAlign: 'center' }}><CircularProgress /></Box>;
@@ -84,11 +84,10 @@ const AdminDashboard = () => {
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard 
-            title="TỔNG DOANH THU" 
-            value={`${new Intl.NumberFormat('vi-VN').format(stats.totalRevenue)}đ`} 
+            title="TỔNG DÒNG TIỀN (BOOKING)" 
+            value={`${new Intl.NumberFormat('vi-VN').format(stats.totalVolume)}đ`} 
             icon={<AccountBalance />} 
             color="primary"
-            trend="+12.5%"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -162,27 +161,33 @@ const AdminDashboard = () => {
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <Card sx={{ p: 4, borderRadius: 1.5, bgcolor: '#DC2626', color: 'white' }}>
-            <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>Phí nền tảng 💰</Typography>
-            <Typography variant="body2" sx={{ opacity: 0.8, mb: 4 }}>Doanh thu thu được từ phí hoa hồng (Default 10%).</Typography>
+          <Card sx={{ p: 4, borderRadius: 1.5, background: 'linear-gradient(135deg,#0F172A,#1E293B)', color: 'white' }}>
+            <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>Doanh thu Gói dịch vụ 💎</Typography>
+            <Typography variant="body2" sx={{ opacity: 0.8, mb: 4 }}>Lợi nhuận thực tế thu được từ việc bán các gói Subscription cho chủ sân.</Typography>
             
-            <Typography variant="h3" sx={{ fontWeight: 900, mb: 2, fontFamily: 'Times New Roman' }}>
-              {new Intl.NumberFormat('vi-VN').format(stats.platformRevenue)}đ
+            <Typography variant="h3" sx={{ fontWeight: 950, mb: 2, fontFamily: 'Times New Roman', color: '#4ADE80' }}>
+              {new Intl.NumberFormat('vi-VN').format(stats.subscriptionRevenue)}đ
             </Typography>
             
             <Stack spacing={2} sx={{ mb: 4 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)', pb: 1 }}>
-                <Typography variant="body2">Tỷ lệ mặc định:</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700 }}>10%</Typography>
+                <Typography variant="body2">Nguồn doanh thu:</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>Gói thành viên</Typography>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)', pb: 1 }}>
                 <Typography variant="body2">Chu kỳ thanh toán:</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700 }}>Hàng tuần</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>Tức thì</Typography>
               </Box>
             </Stack>
 
-            <Button fullWidth variant="contained" sx={{ bgcolor: 'white', color: '#DC2626', fontWeight: 800, '&:hover': { bgcolor: '#F1F5F9' } }}>
-              Rút tiền nền tảng 🚀
+            <Button 
+              fullWidth 
+              component={Link}
+              to="/admin/finance"
+              variant="contained" 
+              sx={{ bgcolor: '#4ADE80', color: '#064E3B', fontWeight: 900, '&:hover': { bgcolor: '#3BBF74' } }}
+            >
+              Chi tiết giao dịch 🚀
             </Button>
           </Card>
         </Grid>

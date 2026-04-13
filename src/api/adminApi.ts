@@ -21,4 +21,7 @@ export const adminApi = {
   getCoupons: (params?: any) => api.get('/coupons/admin', { params }),
   createCoupon: (data: any) => api.post('/coupons/admin', data),
   updateCouponStatus: (id: number | string, status: string) => api.put(`/coupons/admin/${id}/status`, { status }),
+
+  // Financials
+  getSubscriptionPayments: (params?: any) => api.get('/admin/payments/subscriptions', { params }),
 };

@@ -140,15 +140,6 @@ const AdminLayout = () => {
           </Box>
         ))}
       </Box>
-      
-      <Box sx={{ mt: 'auto', p: 3 }}>
-        <Paper sx={{ p: 2, bgcolor: '#FEF2F2', borderRadius: 1.5, border: '1px solid', borderColor: '#FECACA' }}>
-          <Typography variant="caption" color="#B91C1C" sx={{ fontWeight: 800, display: 'block', mb: 1 }}>
-            HỆ THỐNG ĐANG CHẠY
-          </Typography>
-          <Typography variant="body2" sx={{ fontSize: '0.75rem', color: '#7F1D1D' }}>Hệ thống đạt 99.9% uptime. Giám sát các tiến độ thanh toán & phê duyệt cơ sở.</Typography>
-        </Paper>
-      </Box>
     </Box>
   );
 

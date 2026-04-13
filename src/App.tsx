@@ -35,14 +35,14 @@ import OwnerCoupons from './pages/OwnerCoupons';
 
 // Admin Sidebar & Dashboards
 import AdminLayout from './layouts/AdminLayout';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminVenues from './pages/AdminVenues';
-import AdminUsers from './pages/AdminUsers';
-import AdminWithdrawals from '@/pages/AdminWithdrawals';
-import AdminSettings from './pages/admin/AdminSettings';
-import AdminCoupons from './pages/AdminCoupons';
-import AdminBookings from './pages/AdminBookings';
-import AdminIncidents from './pages/AdminIncidents';
+import AdminDashboard from '@/pages/AdminDashboard';
+import AdminVenues from '@/pages/AdminVenues';
+import AdminUsers from '@/pages/AdminUsers';
+import AdminFinance from '@/pages/AdminFinance';
+import AdminSettings from '@/pages/admin/AdminSettings';
+import AdminCoupons from '@/pages/AdminCoupons';
+import AdminBookings from '@/pages/AdminBookings';
+import AdminIncidents from '@/pages/AdminIncidents';
 import { useAuthStore } from './stores/authStore';
 import { socketService } from './utils/socket';
 import { useEffect } from 'react';
@@ -110,7 +110,7 @@ function App() {
             <Route path="users" element={<AdminUsers />} />
             <Route path="bookings" element={<AdminBookings />} />
             <Route path="incidents" element={<AdminIncidents />} />
-            <Route path="finance" element={<AdminWithdrawals />} />
+            <Route path="finance" element={<AdminFinance />} />
             <Route path="coupons" element={<AdminCoupons />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>

@@ -6,12 +6,13 @@ import {
   Tooltip, Avatar, Tabs, Tab
 } from '@mui/material';
 import { 
-  Search, Block, CheckCircle, Visibility, 
+  Block, CheckCircle, Visibility, 
   Email, Phone as PhoneIcon, Security, Badge, Wallet
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { adminApi } from '@/api/adminApi';
 import DataTable, { Column } from '@/components/DataTable';
+import AdminFilterBar from '@/components/AdminFilterBar';
 
 const AdminUsers = () => {
   const queryClient = useQueryClient();
@@ -160,45 +161,45 @@ const AdminUsers = () => {
           </Tabs>
         </Box>
 
-        <Box sx={{ p: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-          <TextField 
-            size="small" 
-            placeholder="Tìm tên, email, sđt..." 
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            InputProps={{ 
-               startAdornment: <Search sx={{ color: 'text.disabled', mr: 1 }} />,
-               sx: { borderRadius: 2 }
-            }}
-            sx={{ flexGrow: 1, maxWidth: 400 }}
-          />
-          <Box sx={{ flexGrow: 1 }} />
+      <Box sx={{ mt: 3, px: 3 }}>
+        <AdminFilterBar
+          search={search}
+          onSearchChange={(val: string) => { setSearch(val); setPage(0); }}
+          searchPlaceholder="Tìm tên, email, sđt..."
+          onReset={() => {
+            setSearch('');
+            setStatus('');
+            setPage(0);
+          }}
+          disableReset={search === '' && status === ''}
+        >
           <TextField 
             select 
             size="small" 
             label="Trạng thái" 
             value={status}
             onChange={(e) => { setStatus(e.target.value); setPage(0); }}
-            sx={{ minWidth: 150, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            sx={{ minWidth: 160, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
           >
             <MenuItem value="">Tất cả trạng thái</MenuItem>
             <MenuItem value="active">Đang hoạt động</MenuItem>
             <MenuItem value="inactive">Đã khóa</MenuItem>
           </TextField>
-        </Box>
+        </AdminFilterBar>
+      </Box>
 
-        <Box sx={{ px: 3, pb: 3 }}>
-          <DataTable 
-            columns={columns}
-            data={users}
-            isLoading={isLoading}
-            count={totalUsers}
-            page={page}
-            rowsPerPage={rowsPerPage}
-            onPageChange={(_, newPage) => setPage(newPage)}
-            onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
-          />
-        </Box>
+      <Box sx={{ px: 3, pb: 3, mt: 3 }}>
+        <DataTable 
+          columns={columns}
+          data={users}
+          isLoading={isLoading}
+          count={totalUsers}
+          page={page}
+          rowsPerPage={rowsPerPage}
+          onPageChange={(_, newPage) => setPage(newPage)}
+          onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+        />
+      </Box>
       </Card>
     </Box>
   );
