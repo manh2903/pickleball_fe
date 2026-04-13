@@ -3,12 +3,12 @@ import {
   Box, Drawer, List, ListItem, ListItemButton, 
   ListItemIcon, ListItemText, Toolbar, Typography, 
   Divider, useTheme, useMediaQuery, IconButton,
-  Paper, Button, Stack, Avatar, Menu, Tooltip, MenuItem
+  Paper, Stack, Avatar, Menu, Tooltip, MenuItem
 } from '@mui/material';
 import { 
   BarChart, Business, People, ConfirmationNumber, 
   AccountBalance, Settings, Menu as MenuIcon,
-  Person, Logout, Gavel, 
+  Person, Logout,
   HistoryEdu, ReportProblem
 } from '@mui/icons-material';
 import { useState } from 'react';
@@ -66,7 +66,6 @@ const AdminLayout = () => {
       items: [
         { text: 'Duyệt Địa điểm', icon: <Business />, path: '/admin/venues' },
         { text: 'Quản lý Tài khoản', icon: <People />, path: '/admin/users' },
-        { text: 'Gói dịch vụ', icon: <Gavel />, path: '/admin/subscriptions' },
       ]
     },
     {
@@ -210,9 +209,9 @@ const AdminLayout = () => {
             </Typography>
           </Box>
           <Stack direction="row" spacing={2} alignItems="center">
-            <Button component={Link} to="/" variant="text" size="small" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'none', display: { xs: 'none', sm: 'block' } }}>
+            {/* <Button component={Link} to="/" variant="text" size="small" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'none', display: { xs: 'none', sm: 'block' } }}>
               Trang Marketplace
-            </Button>
+            </Button> */}
             <HeaderNotificationBell />
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
             <Box>

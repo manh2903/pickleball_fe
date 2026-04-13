@@ -276,9 +276,9 @@ const OwnerLayout = () => {
             </Typography>
           </Box>
           <Stack direction="row" spacing={2} alignItems="center">
-            <Button component={Link} to="/" variant="text" size="small" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'none', display: { xs: 'none', sm: 'block' } }}>
+            {/* <Button component={Link} to="/" variant="text" size="small" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'none', display: { xs: 'none', sm: 'block' } }}>
               Trang Marketplace
-            </Button>
+            </Button> */}
             <HeaderNotificationBell />
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
             <Box>

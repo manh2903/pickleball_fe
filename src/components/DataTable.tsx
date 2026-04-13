@@ -23,6 +23,7 @@ interface DataTableProps<T> {
   onPageChange: (event: unknown, newPage: number) => void;
   onRowsPerPageChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   rowsPerPageOptions?: number[];
+  maxHeight?: string | number;
 }
 
 const DataTable = <T extends { id: string | number }>({ 
@@ -35,11 +36,12 @@ const DataTable = <T extends { id: string | number }>({
   rowsPerPage,
   onPageChange,
   onRowsPerPageChange,
-  rowsPerPageOptions = [5, 10, 25]
+  rowsPerPageOptions = [5, 10, 25],
+  maxHeight = 480
 }: DataTableProps<T>) => {
   return (
     <Box sx={{ width: '100%', position: 'relative' }}>
-      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #F1F5F9', borderRadius: 2 }}>
+      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #F1F5F9', borderRadius: 2, maxHeight }}>
         <Table stickyHeader>
           <TableHead>
             <TableRow sx={{ bgcolor: '#F8FAFC' }}>

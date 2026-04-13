@@ -1,17 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Box, Card, Typography, 
-  Stack, Divider, 
-  CircularProgress, Alert, Paper, Grid,
+  Stack,
+  CircularProgress, Paper, Grid,
   Chip, TextField, Button, InputAdornment, IconButton,
   Dialog, DialogTitle, DialogContent, DialogActions,
   FormControlLabel, Checkbox
 } from '@mui/material';
-import { 
-  Settings as SettingsIcon, 
-  Verified, Storefront, SportsTennis, HourglassEmpty,
-  Save, Language, HeadsetMic, Edit, Close
-} from '@mui/icons-material';
+import { Save, Edit, Close } from '@mui/icons-material';
 import { useState, useEffect } from 'react';
 import { adminApi } from '@/api/adminApi';
 import { subscriptionApi } from '@/api/subscriptionApi';
@@ -90,13 +86,6 @@ const AdminSettings = () => {
   };
 
   if (plansLoading || settingsLoading) return <Box sx={{ py: 10, textAlign: 'center' }}><CircularProgress /></Box>;
-
-  const getIcon = (key: string) => {
-    if (key.includes('hour')) return <HourglassEmpty sx={{ color: '#DC2626' }} />;
-    if (key.includes('name')) return <Language sx={{ color: '#3B82F6' }} />;
-    if (key.includes('hotline')) return <HeadsetMic sx={{ color: '#059669' }} />;
-    return <SettingsIcon />;
-  };
 
   return (
     <Box>

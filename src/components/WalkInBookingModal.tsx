@@ -36,7 +36,7 @@ const WalkInBookingModal = ({ open, onClose, venueId }: WalkInBookingModalProps)
   });
 
   // 1. Fetch Courts for this Venue
-  const { data: courtsRes, isLoading: isCourtsLoading } = useQuery({
+  const { data: courtsRes } = useQuery({
     queryKey: ['owner-courts', venueId],
     queryFn: () => ownerApi.getCourts(venueId),
     enabled: open && !!venueId,

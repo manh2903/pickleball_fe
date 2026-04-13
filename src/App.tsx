@@ -41,6 +41,8 @@ import AdminUsers from './pages/AdminUsers';
 import AdminWithdrawals from '@/pages/AdminWithdrawals';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminCoupons from './pages/AdminCoupons';
+import AdminBookings from './pages/AdminBookings';
+import AdminIncidents from './pages/AdminIncidents';
 import { useAuthStore } from './stores/authStore';
 import { socketService } from './utils/socket';
 import { useEffect } from 'react';
@@ -106,6 +108,8 @@ function App() {
             <Route path="venues" element={<AdminVenues />} />
             <Route path="owners" element={<Box sx={{ py: 10, textAlign: 'center' }}>Owners Management Placeholder</Box>} />
             <Route path="users" element={<AdminUsers />} />
+            <Route path="bookings" element={<AdminBookings />} />
+            <Route path="incidents" element={<AdminIncidents />} />
             <Route path="finance" element={<AdminWithdrawals />} />
             <Route path="coupons" element={<AdminCoupons />} />
             <Route path="settings" element={<AdminSettings />} />

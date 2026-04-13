@@ -8,7 +8,7 @@ import {
   Divider as MuiDivider
 } from '@mui/material';
 import { 
-  AccessTime, LocationOn, QrCodeScanner, 
+  LocationOn, QrCodeScanner, 
   CancelOutlined, Payments,
   CheckCircle, History, Info, ChevronRight,
   ReceiptLong, ConfirmationNumber, CalendarMonth,

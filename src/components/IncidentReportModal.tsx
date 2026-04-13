@@ -4,7 +4,7 @@ import {
   Button, TextField, Stack, MenuItem, Alert, 
   Typography, Box
 } from '@mui/material';
-import { ErrorOutline, Build } from '@mui/icons-material';
+import { Build } from '@mui/icons-material';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 import { incidentApi } from '@/api/incidentApi';

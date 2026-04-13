@@ -6,7 +6,7 @@ import {
   Grid, Stack, Divider, Checkbox, FormControlLabel,
   FormGroup, CircularProgress, Alert, ImageList,
   ImageListItem, IconButton, Paper, Tab, Tabs,
-  InputAdornment, MenuItem, Autocomplete
+  InputAdornment, Autocomplete
 } from '@mui/material';
 import { 
   Save, PhotoCamera, Delete, 

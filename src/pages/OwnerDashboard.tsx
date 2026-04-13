@@ -4,14 +4,14 @@ import {
   Grid, Card, Typography, Box, Stack, 
   CircularProgress, Alert, Table, TableBody, 
   TableCell, TableContainer, TableHead, TableRow,
-  Chip, Divider, Button, Avatar,
-  IconButton, Tooltip, Paper, useTheme
+  Chip, Button, Avatar,
+  IconButton, Paper, useTheme
 } from '@mui/material';
 import { 
-  TrendingUp, EventAvailable, 
+  EventAvailable, 
   AccountBalanceWallet, PendingActions,
-  ArrowForward, Visibility, PointOfSale,
-  AccessTime, CheckCircle, Person,
+  Visibility, PointOfSale,
+  AccessTime, Person,
   OpenInNew, QrCode, ErrorOutline, Lock
 } from '@mui/icons-material';
 import { 
@@ -19,6 +19,7 @@ import {
   Tooltip as ReTooltip, ResponsiveContainer
 } from 'recharts';
 import { ownerApi } from '@/api/ownerApi';
+import { subscriptionApi } from '@/api/subscriptionApi';
 import WalkInBookingModal from '@/components/WalkInBookingModal';
 import CheckInModal from '@/components/CheckInModal';
 import IncidentReportModal from '@/components/IncidentReportModal';
@@ -51,11 +52,17 @@ const StatCard = ({ title, value, icon, color, subtitle, trend }: any) => (
 );
 
 const OwnerDashboard = () => {
-  const { venueId, subscription }: any = useOutletContext();
+  const { venueId }: any = useOutletContext();
   const navigate = useNavigate();
   const theme = useTheme();
-  // const hasAnalytics = subscription?.option?.features?.analytics === true;
-  const hasAnalytics = true;
+
+  const { data: mySubRes } = useQuery({
+    queryKey: ['my-subscription'],
+    queryFn: subscriptionApi.getMySubscription,
+  });
+
+  const currentSubscription = mySubRes?.data || mySubRes;
+  const hasAnalytics = currentSubscription?.option?.features?.analytics === true;
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['owner-stats', venueId],
@@ -87,7 +94,7 @@ const OwnerDashboard = () => {
           <Typography variant="h3" sx={{ fontWeight: 950, fontFamily: 'Times New Roman', mb: 1, letterSpacing: -1 }}>Tổng quan vận hành 🏢</Typography>
           <Typography variant="body1" color="text.secondary" sx={{ fontWeight: 500 }}>Dữ liệu tổng hợp thời gian thực của cơ sở <b>{stats.venueName || 'hiện tại'}</b>.</Typography>
         </Box>
-        <Button 
+        {/* <Button 
           variant="contained" 
           disableElevation
           onClick={() => navigate('../reports')}
@@ -99,24 +106,24 @@ const OwnerDashboard = () => {
           }}
         >
           TRUY CẬP PHÂN TÍCH CHUYÊN SÂU
-        </Button>
+        </Button> */}
       </Box>
 
       {/* KPI Grid */}
       <Grid container spacing={3} sx={{ mb: 6 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard 
-            title="Sẵn sàng hôm nay" 
+            title="Lịch chơi hôm nay" 
             value={stats.todayBookings || 0} 
             icon={<EventAvailable sx={{ fontSize: 32 }} />} 
             color="#3B82F6" 
-            subtitle="Tổng số lịch đăng ký trong ngày"
-            trend="+8.2%"
+            subtitle="Tổng số lượt đặt trong ngày"
+            trend="+5.2%"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard 
-            title="Lợi nhuận gộp" 
+            title="Doanh thu thực nhận" 
             value={`${new Intl.NumberFormat('vi-VN').format(stats.totalRevenue || 0)}đ`} 
             icon={<AccountBalanceWallet sx={{ fontSize: 32 }} />} 
             color="#10B981" 
@@ -125,11 +132,11 @@ const OwnerDashboard = () => {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard 
-            title="Đang lưu đơn" 
+            title="Đang chờ xử lý" 
             value={stats.pendingBookings || 0} 
             icon={<PendingActions sx={{ fontSize: 32 }} />} 
             color="#F59E0B" 
-            subtitle="Đơn chưa check-in/chưa thanh toán"
+            subtitle="Đơn chưa thanh toán/đã hủy"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -138,7 +145,7 @@ const OwnerDashboard = () => {
             value={stats.walkInCount || 0} 
             icon={<Person sx={{ fontSize: 32 }} />} 
             color="#6366F1" 
-            subtitle="Lượt đặt trực tiếp tại quầy"
+            subtitle="Tổng lượt đặt trực tiếp"
           />
         </Grid>
       </Grid>

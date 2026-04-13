@@ -15,5 +15,14 @@ export const couponApi = {
   
   validateCoupon: (data: { code: string, venue_id: number, total_amount: number }) => {
     return api.post('/coupons/validate', data);
+  },
+
+  // Admin methods
+  adminGetAllCoupons: () => {
+    return api.get('/coupons/admin');
+  },
+  
+  adminCreateCoupon: (data: any) => {
+    return api.post('/coupons/admin', data);
   }
 };

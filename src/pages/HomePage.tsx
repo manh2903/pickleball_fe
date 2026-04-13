@@ -1,4 +1,4 @@
-import { Box, Container, Typography, Button, Grid, Card, Stack, Divider } from "@mui/material";
+import { Box, Container, Typography, Button, Grid, Card, Stack, Divider, CircularProgress } from "@mui/material";
 import { Link } from "react-router-dom";
 import {
   PlayCircleFilled,
@@ -11,7 +11,14 @@ import {
   Devices,
   ArrowForward,
   CheckCircle,
+  Bolt,
+  WorkspacePremium,
+  Spa,
+  Storefront,
+  Cancel
 } from "@mui/icons-material";
+import { useQuery } from '@tanstack/react-query';
+import { subscriptionApi } from '@/api/subscriptionApi';
 import { keyframes } from "@mui/system";
 import { useEffect, useState } from "react";
 
@@ -136,10 +143,48 @@ const ctaItems = [
   { icon: <PlayCircleFilled sx={{ fontSize: 26 }} />, label: "Dễ sử dụng" },
 ];
 
+/* ── Pricing Config (Synced with OwnerSubscription) ──────── */
+const FEATURE_LABELS: Record<string, string> = {
+  analytics: 'Báo cáo doanh thu',
+  staff_management: 'Quản lý nhân viên',
+  custom_coupons: 'Tạo mã khuyến mãi',
+};
+
+const TIER_CONFIG: Record<string, any> = {
+  free:    { color: '#64748B', gradient: 'linear-gradient(135deg,#64748B,#94A3B8)', icon: <Spa sx={{ fontSize: 28 }} />,              tier: 0 },
+  basic:   { color: '#3B82F6', gradient: 'linear-gradient(135deg,#2563EB,#60A5FA)', icon: <Bolt sx={{ fontSize: 28 }} />,             tier: 1 },
+  premium: { color: '#8B5CF6', gradient: 'linear-gradient(135deg,#7C3AED,#C084FC)', icon: <WorkspacePremium sx={{ fontSize: 28 }} />, tier: 2 },
+};
+
+const getTierKey = (name: string): string => {
+  const n = (name || '').toLowerCase();
+  if (n.includes('premium') || n.includes('chuyên')) return 'premium';
+  if (n.includes('basic')   || n.includes('bản'))    return 'basic';
+  return 'free';
+};
+
+const fmt = (v: any) =>
+  parseFloat(v) === 0
+    ? 'Miễn phí'
+    : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(v);
+
+const durationLabel = (m: number) => {
+  if (m >= 120) return 'Vĩnh viễn';
+  if (m === 12)  return '1 Năm';
+  return `${m} Tháng`;
+};
+
 /* ═══════════════════════════════════════════════════════════
    COMPONENT
  ═══════════════════════════════════════════════════════════ */
 const HomePage = () => {
+  const { data: plansRes, isLoading: loadingPlans } = useQuery({
+    queryKey: ['public-plans'],
+    queryFn: () => subscriptionApi.getPlans(),
+  });
+
+  const plans = (plansRes as any) || [];
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -484,6 +529,106 @@ const HomePage = () => {
                 </FadeUp>
               </Grid>
             ))}
+          </Grid>
+        </Container>
+      </Box>
+
+      {/* ── PRICING SECTION ──────────────────────────────── */}
+      <Box sx={{ py: { xs: 12, md: 18 }, bgcolor: "#F8FAFC" }}>
+        <Container maxWidth="lg">
+          <Box sx={{ textAlign: "center", mb: 8 }}>
+            <FadeUp>
+              <Typography sx={{ fontSize: ".85rem", fontWeight: 800, color: "#22C55E", textTransform: "uppercase", letterSpacing: 2, mb: 2 }}>
+                Dành cho Chủ sân chuyên nghiệp
+              </Typography>
+            </FadeUp>
+            <FadeUp delay={0.1}>
+              <Typography sx={{ fontWeight: 950, fontSize: { xs: "2.2rem", md: "3rem" }, color: "#0F172A", letterSpacing: "-0.04em", mb: 2 }}>
+                 Lựa chọn gói quản trị phù hợp
+              </Typography>
+            </FadeUp>
+          </Box>
+
+          <Grid container spacing={3} justifyContent="center" alignItems="stretch">
+            {loadingPlans ? (
+              <Box sx={{ py: 10, textAlign: 'center', width: '100%' }}><CircularProgress /></Box>
+            ) : plans.map((plan: any, i: number) => {
+              const tKey = getTierKey(plan.name);
+              const conf = TIER_CONFIG[tKey] || TIER_CONFIG.free;
+              const opts = plan.options || [];
+              if (!opts.length) return null;
+              
+              // On public page, we show the 1-month or cheapest option as primary
+              const activeOpt = opts.sort((a: any, b: any) => a.price - b.price)[0];
+              const isBasic = tKey === 'basic';
+
+              return (
+                <Grid item xs={12} md={4} key={plan.id} sx={{ display: 'flex' }}>
+                   <FadeUp delay={0.2 + (i * 0.1)} sx={{ flex: 1, display: 'flex' }}>
+                    <Card sx={{ 
+                      flex: 1, borderRadius: 5, display: 'flex', flexDirection: 'column',
+                      border: isBasic ? `2.5px solid ${conf.color}` : '1.5px solid #E2E8F0',
+                      position: 'relative', overflow: 'hidden',
+                      boxShadow: isBasic ? `0 20px 50px -12px ${conf.color}33` : '0 4px 12px rgba(0,0,0,0.03)',
+                      transition: 'transform 0.3s',
+                      "&:hover": { transform: "translateY(-8px)" }
+                    }}>
+                      <Box sx={{ background: conf.gradient, p: 3, color: 'white' }}>
+                        <Stack direction="row" alignItems="center" spacing={1.5} mb={1.5}>
+                           <Box sx={{ p: 1, bgcolor: 'rgba(255,255,255,0.2)', borderRadius: 2 }}>{conf.icon}</Box>
+                           <Box>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 900, lineHeight: 1.2 }}>{plan.name}</Typography>
+                              <Typography sx={{ fontSize: '0.75rem', opacity: 0.85 }}>{durationLabel(activeOpt.duration_months)}</Typography>
+                           </Box>
+                        </Stack>
+                        <Typography sx={{ fontSize: '0.8rem', opacity: 0.9, height: 36, overflow: 'hidden' }}>{plan.description}</Typography>
+                      </Box>
+
+                      <Box sx={{ p: 3, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                        <Box sx={{ mb: 3 }}>
+                           <Typography sx={{ fontWeight: 950, fontSize: '2rem', color: conf.color, lineHeight: 1 }}>{fmt(activeOpt.price)}</Typography>
+                           {parseFloat(activeOpt.price) > 0 && <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>/ {durationLabel(activeOpt.duration_months).toLowerCase()}</Typography>}
+                        </Box>
+                        
+                        <Divider sx={{ mb: 3, borderStyle: 'dashed' }} />
+                        
+                        <Stack spacing={1.5} sx={{ mb: 4 }}>
+                          <Stack direction="row" spacing={1.2} alignItems="center">
+                            <Storefront sx={{ fontSize: 16, color: conf.color }} />
+                            <Typography sx={{ fontWeight: 700, fontSize: '0.85rem' }}><b>{activeOpt.max_venues}</b> cơ sở · <b>{activeOpt.max_courts_per_venue}</b> sân/cơ sở</Typography>
+                          </Stack>
+                          {Object.entries(activeOpt.features || {}).map(([k, v]: any) => (
+                            <Stack key={k} direction="row" spacing={1.2} alignItems="center">
+                              {v ? <CheckCircle sx={{ fontSize: 16, color: conf.color }} /> : <Cancel sx={{ fontSize: 16, color: '#CBD5E1' }} />}
+                              <Typography sx={{ fontWeight: 600, fontSize: '0.85rem', color: v ? 'text.primary' : 'text.disabled' }}>{FEATURE_LABELS[k] || k}</Typography>
+                            </Stack>
+                          ))}
+                        </Stack>
+
+                        <Box sx={{ mt: 'auto' }}>
+                          <Button 
+                            fullWidth 
+                            component={Link}
+                            to="/register-owner"
+                            variant={isBasic ? "contained" : "outlined"}
+                            size="large"
+                            sx={{ 
+                              py: 1.8, borderRadius: 3, fontWeight: 900, fontSize: '0.85rem',
+                              bgcolor: isBasic ? conf.color : 'transparent',
+                              borderColor: conf.color,
+                              color: isBasic ? 'white' : conf.color,
+                              '&:hover': { bgcolor: isBasic ? conf.color : 'transparent', filter: 'brightness(1.1)', borderWidth: 2.5 }
+                            }}
+                          >
+                            Đăng ký ngay
+                          </Button>
+                        </Box>
+                      </Box>
+                    </Card>
+                   </FadeUp>
+                </Grid>
+              )
+            })}
           </Grid>
         </Container>
       </Box>

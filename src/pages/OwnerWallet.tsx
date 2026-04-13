@@ -1,14 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Box, Typography, Card, Grid, Stack, Button, 
-  Table, TableBody, TableCell, TableContainer, 
-  TableHead, TableRow, Paper, Chip, TextField,
+  Paper, Chip, TextField,
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Alert, CircularProgress, Tooltip
+  Alert, Tooltip
 } from '@mui/material';
 import { 
   AccountBalanceWallet, CallMade, 
-  LocalAtm, ReceiptLong, Lock, TrendingUp, InfoOutlined
+  ReceiptLong, Lock, TrendingUp, InfoOutlined
 } from '@mui/icons-material';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -18,15 +17,14 @@ import { useState, useEffect } from 'react';
 import { withdrawalApi } from '@/api/withdrawalApi';
 import { ownerApi } from '@/api/ownerApi';
 import { authApi } from '@/api/authApi';
+import { subscriptionApi } from '@/api/subscriptionApi';
 import { useAuthStore } from '@/stores/authStore';
 import { socketService } from '@/utils/socket';
 import { useSnackbar } from 'notistack';
+import DataTable, { Column } from '@/components/DataTable';
 
 const OwnerWallet = () => {
   const { user, updateUser } = useAuthStore();
-  const subscription = (useAuthStore as any).getState?.()?.subscription;
-  // const hasAnalytics = subscription?.option?.features?.analytics === true;
-  const hasAnalytics = true;
   const [openWithdraw, setOpenWithdraw] = useState(false);
   const [amount, setAmount] = useState('');
   const [bankName, setBankName] = useState('');
@@ -35,6 +33,18 @@ const OwnerWallet = () => {
   
   const queryClient = useQueryClient();
   const { enqueueSnackbar } = useSnackbar();
+
+  const { data: mySubRes } = useQuery({
+    queryKey: ['my-subscription'],
+    queryFn: subscriptionApi.getMySubscription,
+  });
+
+  const currentSubscription = mySubRes?.data || mySubRes;
+  const hasAnalytics = currentSubscription?.option?.features?.analytics === true;
+
+  // Pagination state
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // --- Real-time: Poll /auth/me every 30s for latest wallet_balance ---
   const { data: meData, refetch: refetchMe } = useQuery({
@@ -137,7 +147,69 @@ const OwnerWallet = () => {
     paid: 'success', failed: 'error', rejected: 'error', cancelled: 'default'
   };
 
-  if (loadingCashflow) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}><CircularProgress /></Box>;
+  const columns: Column<any>[] = [
+    {
+      key: 'description',
+      label: 'Giao dịch',
+      render: (row) => (
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 700 }}>{row.description}</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+            Mã tham chiếu: #{row.id}
+          </Typography>
+        </Box>
+      )
+    },
+    {
+      key: 'type',
+      label: 'Loại',
+      render: (row) => (
+        <Chip 
+          label={row.amount > 0 ? '+ Thu thập' : '- Trừ tiền'} 
+          color={row.amount > 0 ? 'success' : 'error'} 
+          variant="outlined" 
+          size="small" 
+          sx={{ fontWeight: 800, fontSize: '0.65rem', height: 22 }} 
+        />
+      )
+    },
+    {
+      key: 'amount',
+      label: 'Số tiền',
+      render: (row) => (
+        <Typography variant="body2" sx={{ fontWeight: 900, color: row.amount > 0 ? '#10B981' : '#EF4444' }}>
+          {row.amount > 0 ? '+' : ''}{new Intl.NumberFormat('vi-VN').format(row.amount)}đ
+        </Typography>
+      )
+    },
+    {
+      key: 'date',
+      label: 'Thời gian',
+      render: (row) => (
+        <Typography variant="body2" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
+          {new Date(row.date).toLocaleDateString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+        </Typography>
+      )
+    },
+    {
+      key: 'status',
+      label: 'Trạng thái',
+      render: (row) => (
+        <Chip 
+          label={row.status === 'completed' ? 'Thành công' : row.status} 
+          color={statusColors[row.status] || 'default'} 
+          size="small" 
+          sx={{ fontWeight: 900, fontSize: '0.6rem', height: 20, textTransform: 'uppercase' }} 
+        />
+      )
+    }
+  ];
+
+  const handlePageChange = (_: unknown, newPage: number) => setPage(newPage);
+  const handleRowsPerPageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(e.target.value, 10));
+    setPage(0);
+  };
 
   return (
     <Box>
@@ -304,61 +376,17 @@ const OwnerWallet = () => {
             <ReceiptLong sx={{ color: 'primary.main' }} />
             <Typography variant="h6" sx={{ fontWeight: 900 }}>Lịch sử dòng tiền (Thu / Chi)</Typography>
           </Stack>
-          <TableContainer component={Paper} sx={{ borderRadius: 3, border: '1px solid #E2E8F0', boxShadow: 'none' }}>
-            <Table size="small">
-              <TableHead sx={{ bgcolor: '#F8FAFC' }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 800, py: 2 }}>Giao dịch</TableCell>
-                  <TableCell sx={{ fontWeight: 800 }}>Loại</TableCell>
-                  <TableCell sx={{ fontWeight: 800 }}>Số tiền</TableCell>
-                  <TableCell sx={{ fontWeight: 800 }}>Thời gian</TableCell>
-                  <TableCell sx={{ fontWeight: 800 }}>Trạng thái</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {cashflows.map((tx: any) => (
-                  <TableRow key={tx.id} hover>
-                    <TableCell sx={{ py: 1.5 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 700 }}>{tx.description}</Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                        Mã tham chiếu: #{tx.id}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={tx.amount > 0 ? '+ Thu thập' : '- Trừ tiền'} 
-                        color={tx.amount > 0 ? 'success' : 'error'} 
-                        variant="outlined" 
-                        size="small" 
-                        sx={{ fontWeight: 800, fontSize: '0.65rem', height: 22 }} 
-                      />
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 900, color: tx.amount > 0 ? '#10B981' : '#EF4444' }}>
-                      {tx.amount > 0 ? '+' : ''}{new Intl.NumberFormat('vi-VN').format(tx.amount)}đ
-                    </TableCell>
-                    <TableCell sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
-                      {new Date(tx.date).toLocaleDateString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                    </TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={tx.status === 'completed' ? 'Thành công' : tx.status} 
-                        color={statusColors[tx.status] || 'default'} 
-                        size="small" 
-                        sx={{ fontWeight: 900, fontSize: '0.6rem', height: 20, textTransform: 'uppercase' }} 
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {cashflows.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} sx={{ py: 6, textAlign: 'center' }}>
-                      <Typography variant="body2" color="text.secondary">Chưa có giao dịch phát sinh.</Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <DataTable
+            columns={columns}
+            data={cashflows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)}
+            isLoading={loadingCashflow}
+            count={cashflows.length}
+            page={page}
+            rowsPerPage={rowsPerPage}
+            onPageChange={handlePageChange}
+            onRowsPerPageChange={handleRowsPerPageChange}
+            emptyMessage="Chưa có giao dịch phát sinh."
+          />
         </Grid>
       </Grid>
 
