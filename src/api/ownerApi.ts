@@ -4,6 +4,7 @@ export const ownerApi = {
   // Statistics
   getStats: (venueId?: string | number) => api.get('/owner/stats', { params: { venue_id: venueId } }),
   getAnalytics: (venueId?: string | number) => api.get('/owner/analytics', { params: { venue_id: venueId } }),
+  getCashflow: () => api.get('/owner/cashflow').then(res => res.data),
   
   // Venue Management
   getVenues: () => api.get('/owner/venues'),

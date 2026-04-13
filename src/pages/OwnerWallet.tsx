@@ -7,7 +7,7 @@ import {
   Alert, CircularProgress, Tooltip
 } from '@mui/material';
 import { 
-  AccountBalanceWallet, History, CallMade, 
+  AccountBalanceWallet, CallMade, 
   LocalAtm, ReceiptLong, Lock, TrendingUp, InfoOutlined
 } from '@mui/icons-material';
 import {
@@ -16,7 +16,6 @@ import {
 } from 'recharts';
 import { useState, useEffect } from 'react';
 import { withdrawalApi } from '@/api/withdrawalApi';
-import { paymentApi } from '@/api/paymentApi';
 import { ownerApi } from '@/api/ownerApi';
 import { authApi } from '@/api/authApi';
 import { useAuthStore } from '@/stores/authStore';
@@ -56,11 +55,10 @@ const OwnerWallet = () => {
   // --- Real-time: Socket listener for booking events ---
   useEffect(() => {
     const handleBookingUpdate = () => {
-      // Immediately refetch wallet balance + analytics on any booking change
       refetchMe();
       queryClient.invalidateQueries({ queryKey: ['owner-analytics-wallet'] });
       queryClient.invalidateQueries({ queryKey: ['owner-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['my-withdrawals'] });
+      queryClient.invalidateQueries({ queryKey: ['owner-cashflow'] }); // Đổi từ my-withdrawals
     };
 
     socketService.socket?.on('booking-status-updated', handleBookingUpdate);
@@ -72,25 +70,37 @@ const OwnerWallet = () => {
     };
   }, [socketService.socket]);
 
+  // --- Real-time: Socket listener for withdrawal status update (Admin duyệt / từ chối) ---
+  useEffect(() => {
+    const handleWithdrawalUpdate = (notif: any) => {
+      if (
+        notif?.type === 'withdrawal_approved' ||
+        notif?.type === 'withdrawal_rejected'
+      ) {
+        refetchMe();  // Cập nhật lại số dư ví nếu bị từ chối (tiền được hoàn lại)
+        queryClient.invalidateQueries({ queryKey: ['owner-cashflow'] }); // Cập nhật lịch sử
+        enqueueSnackbar(notif.title, { variant: notif.type === 'withdrawal_approved' ? 'success' : 'error' });
+      }
+    };
+
+    socketService.socket?.on('new-notification', handleWithdrawalUpdate);
+    return () => {
+      socketService.socket?.off('new-notification', handleWithdrawalUpdate);
+    };
+  }, [socketService.socket]);
+
   // Live wallet balance — prefer fresh data from /auth/me, fallback to store
   const freshUser = meData?.data?.user || meData?.data;
   const walletBalance = freshUser?.wallet_balance ?? user?.wallet_balance ?? 0;
   const pendingBalance = freshUser?.pending_balance ?? 0;
   const availableBalance = freshUser?.available_balance ?? walletBalance;
 
-  // 1. Fetch Withdrawals
-  const { data: withdrawalsRes, isLoading: loadingWithdraws } = useQuery({
-    queryKey: ['my-withdrawals'],
-    queryFn: () => withdrawalApi.getMyWithdrawals(),
+  // 1. Fetch Cashflow (Replaces Withdrawals and Payments)
+  const { data: cashflowRes, isLoading: loadingCashflow } = useQuery({
+    queryKey: ['owner-cashflow'],
+    queryFn: () => ownerApi.getCashflow(),
   });
-  const withdrawals = withdrawalsRes?.data?.requests || [];
-
-  // 2. Fetch Payments (Subscriptions etc)
-  const { data: paymentsRes, isLoading: loadingPayments } = useQuery({
-    queryKey: ['my-payments'],
-    queryFn: () => paymentApi.getMyPayments(),
-  });
-  const payments = paymentsRes || [];
+  const cashflows = cashflowRes || [];
 
   // 3. Analytics (gated — Basic/Premium only)
   const { data: analyticsRes } = useQuery({
@@ -104,7 +114,7 @@ const OwnerWallet = () => {
   const withdrawMutation = useMutation({
     mutationFn: (data: any) => withdrawalApi.requestWithdrawal(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-withdrawals'] });
+      queryClient.invalidateQueries({ queryKey: ['owner-cashflow'] });
       queryClient.invalidateQueries({ queryKey: ['auth-user'] }); 
       enqueueSnackbar('Yêu cầu rút tiền đã được gửi.', { variant: 'success' });
       setOpenWithdraw(false);
@@ -127,9 +137,8 @@ const OwnerWallet = () => {
     paid: 'success', failed: 'error', rejected: 'error', cancelled: 'default'
   };
 
-  if (loadingWithdraws || loadingPayments) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}><CircularProgress /></Box>;
+  if (loadingCashflow) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}><CircularProgress /></Box>;
 
-  console.log("user", user)
   return (
     <Box>
       <Typography variant="h5" sx={{ fontWeight: 800, mb: 1, fontFamily: 'Times New Roman' }}>
@@ -207,10 +216,10 @@ const OwnerWallet = () => {
                 </Typography>
               </Grid>
               <Grid item xs={6}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, letterSpacing: 1 }}>ĐƠN CHỜ XỬ LÝ</Typography>
-                <Typography variant="h5" sx={{ fontWeight: 900, mt: 1, color: '#F59E0B' }}>
-                   {payments.filter((p:any) => p.status === 'pending').length}
-                   <Typography variant="caption" sx={{ display: 'block', fontWeight: 500, color: 'text.secondary' }}>Yêu cầu chưa hoàn tất</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, letterSpacing: 1 }}>GIAO DỊCH GẦN ĐÂY</Typography>
+                <Typography variant="h5" sx={{ fontWeight: 900, mt: 1, color: '#0ea5e9' }}>
+                   {cashflows.slice(0,10).length}
+                   <Typography variant="caption" sx={{ display: 'block', fontWeight: 500, color: 'text.secondary' }}>Biến động 10 giao dịch</Typography>
                 </Typography>
               </Grid>
             </Grid>
@@ -288,98 +297,62 @@ const OwnerWallet = () => {
         )}
       </Paper>
 
-      {/* Tables */}
+      {/* Cashflow Table */}
       <Grid container spacing={4}>
-        {/* Left Column: Payment History */}
-        <Grid item xs={12} lg={7}>
+        <Grid item xs={12}>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
             <ReceiptLong sx={{ color: 'primary.main' }} />
-            <Typography variant="h6" sx={{ fontWeight: 900 }}>Lịch sử thanh toán gói</Typography>
+            <Typography variant="h6" sx={{ fontWeight: 900 }}>Lịch sử dòng tiền (Thu / Chi)</Typography>
           </Stack>
           <TableContainer component={Paper} sx={{ borderRadius: 3, border: '1px solid #E2E8F0', boxShadow: 'none' }}>
             <Table size="small">
               <TableHead sx={{ bgcolor: '#F8FAFC' }}>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 800, py: 2 }}>Gói & Kỳ hạn</TableCell>
+                  <TableCell sx={{ fontWeight: 800, py: 2 }}>Giao dịch</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Loại</TableCell>
                   <TableCell sx={{ fontWeight: 800 }}>Số tiền</TableCell>
-                  <TableCell sx={{ fontWeight: 800 }}>Ngày</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Thời gian</TableCell>
                   <TableCell sx={{ fontWeight: 800 }}>Trạng thái</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {payments.map((p: any) => (
-                  <TableRow key={p.id} hover>
+                {cashflows.map((tx: any) => (
+                  <TableRow key={tx.id} hover>
                     <TableCell sx={{ py: 1.5 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 700 }}>{p.option?.plan?.name || 'Gói dịch vụ'}</Typography>
-                      <Typography variant="caption" color="text.secondary">{p.option?.duration_months} tháng</Typography>
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 800 }}>{new Intl.NumberFormat('vi-VN').format(p.amount)}đ</TableCell>
-                    <TableCell sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
-                      {new Date(p.createdAt || p.created_at).toLocaleDateString('vi-VN')}
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>{tx.description}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                        Mã tham chiếu: #{tx.id}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Chip 
-                        label={p.status === 'completed' ? 'Thành công' : p.status === 'pending' ? 'Chờ' : 'Thất bại'} 
-                        color={statusColors[p.status] || 'default'} 
+                        label={tx.amount > 0 ? '+ Thu thập' : '- Trừ tiền'} 
+                        color={tx.amount > 0 ? 'success' : 'error'} 
+                        variant="outlined" 
                         size="small" 
-                        sx={{ fontWeight: 900, fontSize: '0.6rem', height: 20 }} 
+                        sx={{ fontWeight: 800, fontSize: '0.65rem', height: 22 }} 
                       />
                     </TableCell>
-                  </TableRow>
-                ))}
-                {payments.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4} sx={{ py: 6, textAlign: 'center' }}>
-                      <Typography variant="body2" color="text.secondary">Chưa có giao dịch thanh toán gói.</Typography>
+                    <TableCell sx={{ fontWeight: 900, color: tx.amount > 0 ? '#10B981' : '#EF4444' }}>
+                      {tx.amount > 0 ? '+' : ''}{new Intl.NumberFormat('vi-VN').format(tx.amount)}đ
                     </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Grid>
-
-        {/* Right Column: Withdrawal History */}
-        <Grid item xs={12} lg={5}>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
-            <History sx={{ color: 'primary.main' }} />
-            <Typography variant="h6" sx={{ fontWeight: 900 }}>Lịch sử rút tiền</Typography>
-          </Stack>
-          <TableContainer component={Paper} sx={{ borderRadius: 3, border: '1px solid #E2E8F0', boxShadow: 'none' }}>
-            <Table size="small">
-              <TableHead sx={{ bgcolor: '#F8FAFC' }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 800, py: 2 }}>Số tiền</TableCell>
-                  <TableCell sx={{ fontWeight: 800 }}>Ngày</TableCell>
-                  <TableCell sx={{ fontWeight: 800 }}>Trạng thái</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {withdrawals.map((req: any) => (
-                  <TableRow key={req.id} hover>
-                    <TableCell sx={{ py: 1.5 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 800, color: '#059669' }}>
-                        {new Intl.NumberFormat('vi-VN').format(req.amount)}đ
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">{req.bank_name}</Typography>
-                    </TableCell>
-                    <TableCell sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
-                      {new Date(req.created_at).toLocaleDateString('vi-VN')}
+                    <TableCell sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
+                      {new Date(tx.date).toLocaleDateString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                     </TableCell>
                     <TableCell>
                       <Chip 
-                        label={req.status === 'completed' ? 'Đã nhận' : req.status} 
-                        color={statusColors[req.status]} 
+                        label={tx.status === 'completed' ? 'Thành công' : tx.status} 
+                        color={statusColors[tx.status] || 'default'} 
                         size="small" 
                         sx={{ fontWeight: 900, fontSize: '0.6rem', height: 20, textTransform: 'uppercase' }} 
                       />
                     </TableCell>
                   </TableRow>
                 ))}
-                {withdrawals.length === 0 && (
+                {cashflows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={3} sx={{ py: 6, textAlign: 'center' }}>
-                      <Typography variant="body2" color="text.secondary">Chưa có yêu cầu rút tiền.</Typography>
+                    <TableCell colSpan={5} sx={{ py: 6, textAlign: 'center' }}>
+                      <Typography variant="body2" color="text.secondary">Chưa có giao dịch phát sinh.</Typography>
                     </TableCell>
                   </TableRow>
                 )}
@@ -402,7 +375,6 @@ const OwnerWallet = () => {
               fullWidth label="Số tiền muốn rút" type="number"
               variant="filled" value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              InputProps={{ startAdornment: <LocalAtm sx={{ mr: 1, color: 'text.secondary' }} /> }}
             />
             <Typography variant="subtitle2" sx={{ fontWeight: 800, mt: 1 }}>THÔNG TIN NHẬN TIỀN</Typography>
             <TextField fullWidth label="Ngân hàng" placeholder="VD: Vietcombank" variant="filled" value={bankName} onChange={(e) => setBankName(e.target.value)} />

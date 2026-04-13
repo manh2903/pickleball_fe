@@ -54,7 +54,8 @@ const OwnerDashboard = () => {
   const { venueId, subscription }: any = useOutletContext();
   const navigate = useNavigate();
   const theme = useTheme();
-  const hasAnalytics = subscription?.option?.features?.analytics === true;
+  // const hasAnalytics = subscription?.option?.features?.analytics === true;
+  const hasAnalytics = true;
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['owner-stats', venueId],

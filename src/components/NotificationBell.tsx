@@ -41,8 +41,10 @@ const NotificationBell: React.FC = () => {
     try {
       setLoading(true);
       const res = await notificationApi.getNotifications({ limit: 5 });
-      setNotifications(res.data.notifications);
-      setUnreadCount(res.data.unreadCount);
+      // notificationController returns data directly (not wrapped in success/data)
+      const payload = res.data;
+      setNotifications(payload.notifications || []);
+      setUnreadCount(payload.unreadCount || 0);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {
@@ -54,24 +56,31 @@ const NotificationBell: React.FC = () => {
     if (isAuthenticated && user) {
       fetchNotifications();
       
-      // Join socket room
+      // Join user's private room
       socketService.joinUser(user.id);
       
-      // Listen for new notifications
-      socketService.onNewNotification((newNotif: Notification) => {
+      // Admin also joins admin-room to receive admin-targeted notifications
+      if (user.role === 'admin') {
+        socketService.joinAdmin();
+      }
+      
+      // Listen for new notifications (keep reference for cleanup)
+      const handleNewNotif = (newNotif: Notification) => {
         setNotifications(prev => [newNotif, ...prev.slice(0, 4)]);
         setUnreadCount(prev => prev + 1);
-        
-        // Play notification sound if possible
         try {
           const audio = new Audio('/assets/notification.mp3');
           audio.play();
-        } catch (e) {
-          // Ignore audio play errors (browser policy)
-        }
-      });
+        } catch (e) { /* ignore audio policy errors */ }
+      };
+
+      socketService.socket?.on('new-notification', handleNewNotif);
+
+      return () => {
+        socketService.socket?.off('new-notification', handleNewNotif);
+      };
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user?.id]);
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);

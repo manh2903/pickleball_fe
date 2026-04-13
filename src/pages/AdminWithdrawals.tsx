@@ -10,9 +10,11 @@ import {
   Visibility,
   Close, DoneAll, Block
 } from '@mui/icons-material';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { withdrawalApi } from '@/api/withdrawalApi';
 import { useSnackbar } from 'notistack';
+import { socketService } from '@/utils/socket';
+import { useAuthStore } from '@/stores/authStore';
 
 const AdminWithdrawals = () => {
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
@@ -22,6 +24,39 @@ const AdminWithdrawals = () => {
   const [adminNote, setAdminNote] = useState('');
   const queryClient = useQueryClient();
   const { enqueueSnackbar } = useSnackbar();
+  const { user } = useAuthStore();
+
+  // Join admin-room & listen for real-time withdrawal events
+  useEffect(() => {
+    socketService.joinAdmin();
+
+    const handleNotification = (notif: any) => {
+      if (notif?.type === 'withdrawal_requested') {
+        queryClient.invalidateQueries({ queryKey: ['admin-withdrawals'] });
+        enqueueSnackbar(
+          `💸 Yêu cầu rút tiền mới: ${notif.body}`,
+          { variant: 'info', autoHideDuration: 6000 }
+        );
+      }
+    };
+
+    // Also listen for the dedicated direct event (instant refresh without needing notification bell)
+    const handleDirectWithdrawal = (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-withdrawals'] });
+      enqueueSnackbar(
+        `💸 Chủ sân ${data.owner_name} vừa yêu cầu rút ${new Intl.NumberFormat('vi-VN').format(data.amount)}đ`,
+        { variant: 'info', autoHideDuration: 6000 }
+      );
+    };
+
+    socketService.socket?.on('new-notification', handleNotification);
+    socketService.socket?.on('withdrawal-new-request', handleDirectWithdrawal);
+
+    return () => {
+      socketService.socket?.off('new-notification', handleNotification);
+      socketService.socket?.off('withdrawal-new-request', handleDirectWithdrawal);
+    };
+  }, [queryClient]);
 
   const { data: requestsRes, isLoading } = useQuery({
     queryKey: ['admin-withdrawals'],
