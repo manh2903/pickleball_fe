@@ -9,7 +9,8 @@ import {
 } from '@mui/material';
 import { 
   ArrowBack, CheckCircle, Payments,
-  CalendarMonth, Info, Person, Phone, Email
+  CalendarMonth, Info, Person, Phone, Email,
+  AccountBalanceWallet, Lock
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import dayjs, { Dayjs } from 'dayjs';
@@ -38,7 +39,7 @@ const BookingPage = () => {
   const [selectedSlotIds, setSelectedSlotIds] = useState<number[]>([]);
   const [notes, setNotes] = useState('');
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const paymentMethod = 'vnpay';
+  const [paymentMethod, setPaymentMethod] = useState<'vnpay' | 'wallet'>('vnpay');
 
   // Customer info state
   const [customerInfo, setCustomerInfo] = useState({
@@ -47,7 +48,7 @@ const BookingPage = () => {
     email: ''
   });
 
-  // Pre-fill if logged in
+  // Pre-fill if logged in + default wallet if sufficient
   useEffect(() => {
     if (isAuthenticated && user) {
       setCustomerInfo({
@@ -139,14 +140,14 @@ const BookingPage = () => {
     mutationFn: (payload: any) => bookingApi.createBooking(payload),
     onSuccess: (res: any) => {
       enqueueSnackbar('Đặt sân thành công! 🎉', { variant: 'success' });
-      
-      if (res.paymentUrl) {
-        window.location.href = res.paymentUrl;
+      setIsConfirmOpen(false);
+      if (res.data?.paymentUrl || res.paymentUrl) {
+        window.location.href = res.data?.paymentUrl || res.paymentUrl;
       } else {
-        navigate(`/bookings/${res.data.booking_code}`);
+        navigate(`/my-bookings`);
       }
     },
-    onError: (err: any) => enqueueSnackbar(err.message || 'Đặt sân thất bại', { variant: 'error' })
+    onError: (err: any) => enqueueSnackbar(err.response?.data?.message || err.message || 'Đặt sân thất bại', { variant: 'error' })
   });
 
   const handleToggleSlot = (id: number) => {
@@ -432,19 +433,72 @@ const BookingPage = () => {
 
                <Box>
                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5 }}>PHƯƠNG THỨC THANH TOÁN:</Typography>
-                 <Paper variant="outlined" sx={{ 
-                   p: 2, borderRadius: 1.5, 
-                   border: '2px solid #0EA5E9',
-                   bgcolor: '#F0F9FF'
-                 }}>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                       <Payments color="primary" />
+                 <Stack spacing={1.5}>
+
+                   {/* Ví tiền */}
+                   {(() => {
+                     const walletBal = parseFloat(String(user?.wallet_balance || 0));
+                     const canUseWallet = walletBal >= totalPrice;
+                     return (
+                       <Paper
+                         variant="outlined"
+                         onClick={() => canUseWallet && setPaymentMethod('wallet')}
+                         sx={{
+                           p: 2, borderRadius: 1.5, cursor: canUseWallet ? 'pointer' : 'default',
+                           border: paymentMethod === 'wallet' ? '2px solid #10B981' : '1px solid #E2E8F0',
+                           bgcolor: paymentMethod === 'wallet' ? '#ECFDF5' : (canUseWallet ? 'white' : '#F8FAFC'),
+                           opacity: canUseWallet ? 1 : 0.65,
+                           transition: 'all 0.2s'
+                         }}
+                       >
+                         <Stack direction="row" spacing={1.5} alignItems="center">
+                           <AccountBalanceWallet sx={{ color: canUseWallet ? '#10B981' : '#94A3B8' }} />
+                           <Box sx={{ flex: 1 }}>
+                             <Stack direction="row" justifyContent="space-between" alignItems="center">
+                               <Typography variant="body2" sx={{ fontWeight: 800 }}>Ví tiền</Typography>
+                               <Typography variant="caption" sx={{ fontWeight: 900, color: canUseWallet ? '#10B981' : '#EF4444' }}>
+                                 {new Intl.NumberFormat('vi-VN').format(walletBal)}đ
+                               </Typography>
+                             </Stack>
+                             {canUseWallet ? (
+                               <Typography variant="caption" color="text.secondary">
+                                 Thanh toán ngay, không cần chuyển hướng.
+                               </Typography>
+                             ) : (
+                               <Stack direction="row" spacing={0.5} alignItems="center">
+                                 <Lock sx={{ fontSize: 11, color: '#EF4444' }} />
+                                 <Typography variant="caption" color="error" sx={{ fontWeight: 700 }}>
+                                   Không đủ số dư (thiếu {new Intl.NumberFormat('vi-VN').format(totalPrice - walletBal)}đ)
+                                 </Typography>
+                               </Stack>
+                             )}
+                           </Box>
+                         </Stack>
+                       </Paper>
+                     );
+                   })()}
+
+                   {/* VNPay */}
+                   <Paper
+                     variant="outlined"
+                     onClick={() => setPaymentMethod('vnpay')}
+                     sx={{
+                       p: 2, borderRadius: 1.5, cursor: 'pointer',
+                       border: paymentMethod === 'vnpay' ? '2px solid #0EA5E9' : '1px solid #E2E8F0',
+                       bgcolor: paymentMethod === 'vnpay' ? '#F0F9FF' : 'white',
+                       transition: 'all 0.2s'
+                     }}
+                   >
+                     <Stack direction="row" spacing={1.5} alignItems="center">
+                       <Payments sx={{ color: '#0EA5E9' }} />
                        <Box>
-                         <Typography variant="body2" sx={{ fontWeight: 800 }}>VNPay Online (Visa, Mastercard, QR)</Typography>
-                         <Typography variant="caption" color="text.secondary">Bạn sẽ được chuyển đến trang thanh toán an toàn của VNPay.</Typography>
+                         <Typography variant="body2" sx={{ fontWeight: 800 }}>VNPay (Visa, Mastercard, QR)</Typography>
+                         <Typography variant="caption" color="text.secondary">Chuyển đến trang thanh toán an toàn của VNPay.</Typography>
                        </Box>
-                    </Stack>
-                 </Paper>
+                     </Stack>
+                   </Paper>
+
+                 </Stack>
                </Box>
 
                <TextField 
@@ -460,13 +514,14 @@ const BookingPage = () => {
           <DialogActions sx={{ p: 3, gap: 1 }}>
             <Button onClick={() => setIsConfirmOpen(false)} sx={{ fontWeight: 700 }}>QUAY LẠI</Button>
             <Button 
-              variant="contained" 
+              variant="contained"
+              color={paymentMethod === 'wallet' ? 'success' : 'primary'}
               onClick={handleBooking}
               disabled={createMutation.isPending}
-              startIcon={createMutation.isPending ? <CircularProgress size={20} /> : <CheckCircle />}
+              startIcon={createMutation.isPending ? <CircularProgress size={20} /> : (paymentMethod === 'wallet' ? <AccountBalanceWallet /> : <CheckCircle />)}
               sx={{ borderRadius: 1.5, py: 1.2, px: 4, fontWeight: 900 }}
             >
-              {paymentMethod === 'vnpay' ? 'THANH TOÁN NGAY' : 'XÁC NHẬN ĐẶT'}
+              {paymentMethod === 'wallet' ? 'THANH TOÁN BẰNG VÍ' : 'THANH TOÁN VNPay'}
             </Button>
           </DialogActions>
         </Dialog>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, Container, Typography, Card, Grid, 
   Avatar, Button, TextField, Divider, Stack,
@@ -6,9 +6,12 @@ import {
   Paper
 } from '@mui/material';
 import { 
-  Person, Security, Loyalty, PhotoCamera,
-  Email, Phone, Save, VerifiedUser, Star
+  Person, Security, PhotoCamera,
+  Email, Phone, Save, VerifiedUser,
+  AccountBalanceWallet
 } from '@mui/icons-material';
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/authStore';
 import { authApi } from '@/api/authApi';
 import { useSnackbar } from 'notistack';
@@ -17,6 +20,24 @@ const ProfilePage = () => {
   const { user, updateUser } = useAuthStore();
   const { enqueueSnackbar } = useSnackbar();
   
+  // Real-time wallet balance
+  const { data: meData } = useQuery({
+    queryKey: ['auth-me-profile'],
+    queryFn: () => authApi.getMe(),
+    refetchInterval: 30_000,
+    staleTime: 10_000,
+  });
+
+  useEffect(() => {
+    const freshUser = meData?.data?.user || meData?.data;
+    if (freshUser?.wallet_balance !== undefined) {
+      updateUser({ wallet_balance: freshUser.wallet_balance });
+    }
+  }, [meData]);
+
+  const freshUser = meData?.data?.user || meData?.data;
+  const walletBalance = freshUser?.wallet_balance ?? user?.wallet_balance ?? 0;
+
   const [tabValue, setTabValue] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -74,14 +95,17 @@ const ProfilePage = () => {
   if (!user) return <Box sx={{ py: 10, textAlign: 'center' }}><CircularProgress /></Box>;
 
   return (
-    <Box sx={{ bgcolor: '#F8FAFC', minHeight: '100vh', py: 8 }}>
-      <Container maxWidth="md">
+    <Box sx={{ bgcolor: '#F8FAFC', minHeight: '100vh', py: { xs: 4, md: 8 } }}>
+      <Container maxWidth="lg">
         <Box sx={{ mb: 6 }}>
-          <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, fontFamily: 'Times New Roman' }}>
-            Hồ sơ cá nhân 👤
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Quản lý thông tin cá nhân, bảo mật và điểm thưởng của bạn.
+          <Stack direction="row" spacing={2} alignItems="center" mb={1}>
+            <Person color="primary" sx={{ fontSize: '2.5rem' }} />
+            <Typography variant="h3" sx={{ fontWeight: 900, fontFamily: 'Times New Roman' }}>
+              Hồ sơ cá nhân
+            </Typography>
+          </Stack>
+          <Typography variant="body1" color="text.secondary" sx={{ fontWeight: 500 }}>
+            Quản lý thông tin cá nhân và bảo mật tài khoản.
           </Typography>
         </Box>
 
@@ -106,22 +130,33 @@ const ProfilePage = () => {
               <Typography variant="body2" color="text.secondary" gutterBottom>{user.role.toUpperCase()}</Typography>
               
               <Divider sx={{ my: 3 }} />
-              
-              <Box sx={{ bgcolor: 'rgba(34,197,94,0.05)', p: 2, borderRadius: 1.5, border: '1px dashed', borderColor: 'primary.light' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
-                  <Star sx={{ color: 'primary.main', mr: 1 }} />
-                  <Typography variant="h5" sx={{ fontWeight: 900, color: 'primary.main' }}>
-                    {user.points || 0}
-                  </Typography>
-                </Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  DIỂM TÍCH LŨY (LOYALTY)
+
+              {/* Số dư ví */}
+              <Box sx={{ 
+                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                p: 3, borderRadius: 2, color: 'white', position: 'relative', overflow: 'hidden'
+              }}>
+                <AccountBalanceWallet sx={{ position: 'absolute', right: -10, bottom: -10, fontSize: 80, opacity: 0.15 }} />
+                <Typography variant="caption" sx={{ opacity: 0.85, fontWeight: 700, letterSpacing: 1, display: 'block', mb: 0.5 }}>
+                  SỐ DƯ VÍ
                 </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 900, fontFamily: 'monospace', mb: 1.5 }}>
+                  {new Intl.NumberFormat('vi-VN').format(walletBalance)}đ
+                </Typography>
+                <Button
+                  component={Link}
+                  to="/my-bookings"
+                  size="small"
+                  sx={{
+                    bgcolor: 'rgba(255,255,255,0.2)', color: 'white',
+                    fontWeight: 800, fontSize: '0.72rem', px: 2, borderRadius: 1.5,
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' },
+                    textTransform: 'none'
+                  }}
+                >
+                  Xem lịch sử đặt sân →
+                </Button>
               </Box>
-              
-              <Button fullWidth variant="outlined" sx={{ mt: 3, borderRadius: 1 }}>
-                Lịch sử ví điểm
-              </Button>
             </Card>
 
             <Paper sx={{ p: 3, borderRadius: 1.5 }}>
@@ -129,20 +164,6 @@ const ProfilePage = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <VerifiedUser sx={{ mr: 1, color: 'success.main', fontSize: '1.2rem' }} />
                   <Typography variant="body2">Tài khoản đã xác minh</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Loyalty sx={{ mr: 1, color: 
-                    user.member_rank === 'platinum' ? '#E5E4E2' : 
-                    user.member_rank === 'gold' ? '#FFD700' : 
-                    user.member_rank === 'silver' ? '#C0C0C0' : '#CD7F32'
-                  , fontSize: '1.2rem' }} />
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                    Hạng: {
-                      user.member_rank === 'platinum' ? 'Bạch Kim' :
-                      user.member_rank === 'gold' ? 'Vàng' :
-                      user.member_rank === 'silver' ? 'Bạc' : 'Đồng'
-                    }
-                  </Typography>
                 </Box>
               </Stack>
             </Paper>
