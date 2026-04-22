@@ -17,13 +17,14 @@ interface DataTableProps<T> {
   data: T[];
   isLoading?: boolean;
   emptyMessage?: string;
-  count: number;
-  page: number;
-  rowsPerPage: number;
-  onPageChange: (event: unknown, newPage: number) => void;
-  onRowsPerPageChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  count?: number;
+  page?: number;
+  rowsPerPage?: number;
+  onPageChange?: (event: unknown, newPage: number) => void;
+  onRowsPerPageChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
   rowsPerPageOptions?: number[];
   maxHeight?: string | number;
+  hidePagination?: boolean;
 }
 
 const DataTable = <T extends { id: string | number }>({ 
@@ -31,17 +32,18 @@ const DataTable = <T extends { id: string | number }>({
   data, 
   isLoading, 
   emptyMessage = 'Không có dữ liệu hiển thị.',
-  count,
-  page,
-  rowsPerPage,
-  onPageChange,
-  onRowsPerPageChange,
+  count = 0,
+  page = 0,
+  rowsPerPage = 10,
+  onPageChange = () => {},
+  onRowsPerPageChange = () => {},
   rowsPerPageOptions = [5, 10, 25],
-  maxHeight = 480
+  maxHeight = 480,
+  hidePagination = false
 }: DataTableProps<T>) => {
   return (
     <Box sx={{ width: '100%', position: 'relative' }}>
-      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #F1F5F9', borderRadius: 2, maxHeight }}>
+      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #F1F5F9', borderRadius: 0, maxHeight }}>
         <Table stickyHeader>
           <TableHead>
             <TableRow sx={{ bgcolor: '#F8FAFC' }}>
@@ -49,7 +51,7 @@ const DataTable = <T extends { id: string | number }>({
                 <TableCell 
                   key={col.key} 
                   align={col.align || 'left'}
-                  sx={{ fontWeight: 800, bgcolor: '#F8FAFC', borderBottom: '1.5px solid #F1F5F9' }}
+                  sx={{ fontWeight: 800, bgcolor: '#F8FAFC', borderBottom: '1.5px solid #F1F5F9', py: 1.5 }}
                 >
                   {col.label}
                 </TableCell>
@@ -78,7 +80,7 @@ const DataTable = <T extends { id: string | number }>({
               data.map((row) => (
                 <TableRow key={row.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                   {columns.map((col) => (
-                    <TableCell key={`${row.id}-${col.key}`} align={col.align || 'left'}>
+                    <TableCell key={`${row.id}-${col.key}`} align={col.align || 'left'} sx={{ py: 1.5 }}>
                       {col.render ? col.render(row) : (row as any)[col.key]}
                     </TableCell>
                   ))}
@@ -89,17 +91,19 @@ const DataTable = <T extends { id: string | number }>({
         </Table>
       </TableContainer>
 
-      <TablePagination
-        rowsPerPageOptions={rowsPerPageOptions}
-        component="div"
-        count={count}
-        rowsPerPage={rowsPerPage}
-        page={page}
-        onPageChange={onPageChange}
-        onRowsPerPageChange={onRowsPerPageChange}
-        sx={{ borderTop: 'none', px: 2 }}
-        labelRowsPerPage="Số dòng mỗi trang:"
-      />
+      {!hidePagination && (
+        <TablePagination
+          rowsPerPageOptions={rowsPerPageOptions}
+          component="div"
+          count={count}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={onPageChange}
+          onRowsPerPageChange={onRowsPerPageChange}
+          sx={{ borderTop: 'none', px: 2 }}
+          labelRowsPerPage="Số dòng mỗi trang:"
+        />
+      )}
     </Box>
   );
 };

@@ -2,33 +2,36 @@ import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   Grid, Card, Typography, Box, Stack, 
-  CircularProgress, Alert, Table, TableBody, 
-  TableCell, TableContainer, TableHead, TableRow,
-  IconButton, Chip, Button
+  CircularProgress, Alert, Chip, Button
 } from '@mui/material';
 import { 
-  TrendingUp, People, Business, 
-  Visibility, Assessment, AccountBalance, 
-  ArrowOutward
+  People, 
+  Assessment, AccountBalance, 
+  ArrowOutward, TrendingUp
 } from '@mui/icons-material';
 import { adminApi } from '@/api/adminApi';
 import { Link } from 'react-router-dom';
 import { socketService } from '@/utils/socket';
 import { useSnackbar } from 'notistack';
+import { 
+  AreaChart, Area, XAxis, YAxis, 
+  CartesianGrid, Tooltip,
+  Legend
+} from 'recharts';
 
 const StatCard = ({ title, value, icon, color, trend }: any) => (
-  <Card sx={{ p: 3, borderRadius: 1.5, height: '100%' }}>
+  <Card sx={{ p: 3, borderRadius: 0, borderTop: `4px solid`, borderColor: `${color}.main`, height: '100%', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}>
     <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
       <Box>
-        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 1 }}>{title}</Typography>
-        <Typography variant="h4" sx={{ fontWeight: 900, fontFamily: 'Times New Roman' }}>{value}</Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase' }}>{title}</Typography>
+        <Typography variant="h4" sx={{ fontWeight: 950, fontFamily: 'Times New Roman', mt: 1 }}>{value}</Typography>
         {trend && (
-          <Typography variant="caption" sx={{ color: 'success.main', display: 'flex', alignItems: 'center', mt: 1, fontWeight: 700 }}>
-            <TrendingUp sx={{ fontSize: 14, mr: 0.5 }} /> {trend} so với tháng trước
+          <Typography variant="caption" sx={{ color: 'success.main', display: 'flex', alignItems: 'center', mt: 1.5, fontWeight: 800 }}>
+            <TrendingUp sx={{ fontSize: 16, mr: 0.5 }} /> {trend} so với tháng trước
           </Typography>
         )}
       </Box>
-      <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: `${color}.light`, color: `${color}.main` }}>
+      <Box sx={{ p: 1.5, bgcolor: `${color}.light`, color: `${color}.main`, borderRadius: 0 }}>
         {icon}
       </Box>
     </Stack>
@@ -44,21 +47,15 @@ const AdminDashboard = () => {
     queryFn: () => adminApi.getStats()
   });
 
-  // Real-time notifications for Admin
   useEffect(() => {
     socketService.connect();
     socketService.joinAdmin();
 
     socketService.onNewBooking((data) => {
-      enqueueSnackbar(`🔔 Đơn đặt mới tại ${data.venue_name || 'hệ thống'}: ${data.booking.booking_code}`, { 
+      enqueueSnackbar(`🔔 Đơn đặt mới tại ${data.venue_name}: ${data.booking.booking_code}`, { 
         variant: 'info',
-        autoHideDuration: 8000
+        autoHideDuration: 5000
       });
-      queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
-    });
-
-    socketService.onBookingStatusUpdated((data) => {
-      console.log('Admin: Booking status updated', data);
       queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
     });
 
@@ -67,129 +64,93 @@ const AdminDashboard = () => {
     };
   }, [queryClient, enqueueSnackbar]);
 
-  const stats = statsRes?.data || {
-    totalVolume: 0,
-    subscriptionRevenue: 0,
-    totalBookings: 0,
-    activeVenues: 0,
-    newUsers: 0,
-    recentVenues: []
-  };
+  const stats = statsRes?.data || {};
+  const chartData = stats.revenueTrend || [];
+
+  console.log( chartData )
 
   if (isLoading) return <Box sx={{ py: 10, textAlign: 'center' }}><CircularProgress /></Box>;
-  if (error) return <Alert severity="error">Không thể tải dữ liệu thống kê hệ thống.</Alert>;
+  if (error) return <Box sx={{ p: 4 }}><Alert severity="error">Lỗi kết nối dữ liệu thống kê.</Alert></Box>;
 
   return (
     <Box>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <Box>
+            <Typography variant="h4" sx={{ fontWeight: 950, fontFamily: 'Times New Roman', letterSpacing: -1 }}>
+                Tổng quan Hệ thống 🏛️
+            </Typography>
+            <Typography variant="body2" color="text.secondary">Chào mừng Admin, đây là báo cáo vận hành toàn nền tảng Pickleball.</Typography>
+        </Box>
+        <Chip label="DỮ LIỆU REAL-TIME" color="success" size="small" sx={{ fontWeight: 900, borderRadius: 0, px: 1 }} />
+      </Box>
+
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard 
-            title="TỔNG DÒNG TIỀN (BOOKING)" 
-            value={`${new Intl.NumberFormat('vi-VN').format(stats.totalVolume)}đ`} 
-            icon={<AccountBalance />} 
-            color="primary"
-          />
+        <Grid item xs={12} sm={6} md={4}>
+          <StatCard title="Tổng Dòng tiền" value={`${new Intl.NumberFormat('vi-VN').format(stats.totalVolume)}đ`} icon={<AccountBalance />} color="primary" />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard 
-            title="LƯỢT ĐẶT SÂN" 
-            value={stats.totalBookings} 
-            icon={<Assessment />} 
-            color="success"
-            trend="+8.2%"
-          />
+        <Grid item xs={12} sm={6} md={4}>
+          <StatCard title="Lượt Đặt sân" value={stats.totalBookings} icon={<Assessment />} color="success" trend="+12.5%" />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard 
-            title="CƠ SỞ HOẠT ĐỘNG" 
-            value={stats.activeVenues} 
-            icon={<Business />} 
-            color="warning"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard 
-            title="NGƯỜI DÙNG MỚI" 
-            value={stats.newUsers} 
-            icon={<People />} 
-            color="info"
-          />
+        <Grid item xs={12} sm={6} md={4}>
+          <StatCard title="Người chơi mới" value={stats.newUsers} icon={<People />} color="info" />
         </Grid>
       </Grid>
 
       <Grid container spacing={4}>
-        <Grid item xs={12} md={8}>
-          <Card sx={{ p: 4, borderRadius: 1.5 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-              <Typography variant="h6" sx={{ fontWeight: 800 }}>Theo dõi Địa điểm mới 🏢</Typography>
-              <Button component={Link} to="/admin/venues" endIcon={<ArrowOutward />} size="small">Xem tất cả</Button>
+        <Grid item xs={12} lg={8}>
+          <Card sx={{ p: 4, borderRadius: 0, height: '100%', minHeight: 450 }}>
+            <Typography variant="h6" sx={{ fontWeight: 900, mb: 4 }}>Xu hướng Dòng tiền (7 ngày qua) 📈</Typography>
+            <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center', pt: 2, minHeight: 350 }}>
+                {chartData.length > 0 ? (
+                    <AreaChart width={750} height={350} data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                        <XAxis 
+                            dataKey="date" 
+                            tick={{ fontSize: 10, fontWeight: 700 }} 
+                            axisLine={false} 
+                            tickLine={false} 
+                        />
+                        <YAxis 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{ fontSize: 10, fontWeight: 700 }} 
+                            tickFormatter={(v) => v >= 1000000 ? `${v/1000000}M` : `${v/1000}k`} 
+                        />
+                        <Tooltip 
+                            contentStyle={{ borderRadius: 0, border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 800 }}
+                        />
+                        <Legend verticalAlign="top" align="right" height={36} iconType="rect" />
+                        <Area name="Dòng tiền Booking" dataKey="bookingRevenue" stroke="#3B82F6" strokeWidth={3} fill="#3B82F6" fillOpacity={0.1} />
+                        <Area name="Doanh thu Gói" dataKey="subscriptionRevenue" stroke="#10B981" strokeWidth={3} fill="#10B981" fillOpacity={0.1} />
+                    </AreaChart>
+                ) : (
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 350, width: '100%', bgcolor: '#F8FAFC' }}>
+                        <Typography variant="body2" color="text.secondary">Chưa có dữ liệu xu hướng.</Typography>
+                    </Box>
+                )}
             </Box>
-            
-            <TableContainer>
-              <Table>
-                <TableHead sx={{ bgcolor: '#F8FAFC' }}>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 700 }}>Địa điểm</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Chủ sở hữu</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Trạng thái</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }} align="right">Hành động</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {stats.recentVenues?.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} align="center" sx={{ py: 5 }}>
-                        Cơ sở dữ liệu đang đồng bộ hoặc không có địa điểm mới.
-                      </TableCell>
-                    </TableRow>
-                  ) : stats.recentVenues.map((venue: any) => (
-                    <TableRow key={venue.id} hover>
-                      <TableCell sx={{ fontWeight: 700 }}>{venue.name}</TableCell>
-                      <TableCell>{venue.owner?.name}</TableCell>
-                      <TableCell><Chip label="Mới khởi tạo" color="info" size="small" variant="outlined" sx={{ fontWeight: 800 }} /></TableCell>
-                      <TableCell align="right">
-                        <IconButton component={Link} to="/admin/venues" color="primary">
-                          <Visibility fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
           </Card>
         </Grid>
 
-        <Grid item xs={12} md={4}>
-          <Card sx={{ p: 4, borderRadius: 1.5, background: 'linear-gradient(135deg,#0F172A,#1E293B)', color: 'white' }}>
-            <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>Doanh thu Gói dịch vụ 💎</Typography>
-            <Typography variant="body2" sx={{ opacity: 0.8, mb: 4 }}>Lợi nhuận thực tế thu được từ việc bán các gói Subscription cho chủ sân.</Typography>
-            
-            <Typography variant="h3" sx={{ fontWeight: 950, mb: 2, fontFamily: 'Times New Roman', color: '#4ADE80' }}>
-              {new Intl.NumberFormat('vi-VN').format(stats.subscriptionRevenue)}đ
-            </Typography>
-            
-            <Stack spacing={2} sx={{ mb: 4 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)', pb: 1 }}>
-                <Typography variant="body2">Nguồn doanh thu:</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700 }}>Gói thành viên</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)', pb: 1 }}>
-                <Typography variant="body2">Chu kỳ thanh toán:</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700 }}>Tức thì</Typography>
-              </Box>
+        <Grid item xs={12} lg={4}>
+            <Stack spacing={4}>
+                <Card sx={{ p: 4, borderRadius: 0, backgroundImage: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)', color: 'white', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#94A3B8', mb: 2, letterSpacing: 1.5 }}>DOANH THU SAAS 💎</Typography>
+                    <Typography variant="h3" sx={{ fontWeight: 950, fontFamily: 'Times New Roman', color: '#10B981', mb: 2 }}>
+                        {new Intl.NumberFormat('vi-VN').format(stats.subscriptionRevenue)}đ
+                    </Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.7, mb: 4 }}>Tổng thu nhập thực tế từ phí đăng ký gói Pro & Ultra của hệ thống.</Typography>
+                    <Button 
+                        fullWidth 
+                        component={Link} to="/admin/finance"
+                        variant="contained" 
+                        sx={{ bgcolor: '#10B981', color: '#064E3B', fontWeight: 900, borderRadius: 0, py: 1.5, '&:hover': { bgcolor: '#059669' } }}
+                        endIcon={<ArrowOutward />}
+                    >
+                        Quản lý Tài chính
+                    </Button>
+                </Card>
             </Stack>
-
-            <Button 
-              fullWidth 
-              component={Link}
-              to="/admin/finance"
-              variant="contained" 
-              sx={{ bgcolor: '#4ADE80', color: '#064E3B', fontWeight: 900, '&:hover': { bgcolor: '#3BBF74' } }}
-            >
-              Chi tiết giao dịch 🚀
-            </Button>
-          </Card>
         </Grid>
       </Grid>
     </Box>

@@ -3,14 +3,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Box, Card, Typography, TextField, 
   IconButton, Chip, Stack, MenuItem, 
-  Tooltip, Avatar, Tabs, Tab,
+  Avatar, Tabs, Tab,
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
-  Divider, Grid, CircularProgress, Alert, Table, TableHead, TableRow, TableCell, TableBody
+  Grid, CircularProgress, Alert
 } from '@mui/material';
 import { 
   Block, CheckCircle, Visibility, 
-  Email, Security, Badge, Wallet,
-  CalendarMonth, Update, Person, Store, WorkspacePremium, History
+  AccountBalanceWallet
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { adminApi } from '@/api/adminApi';
@@ -24,6 +23,7 @@ const AdminUsers = () => {
   const [role, setRole] = useState('');
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
+  const [planId, setPlanId] = useState('');
   const [page, setPage] = useState(0); 
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -32,11 +32,10 @@ const AdminUsers = () => {
   const [openDetail, setOpenDetail] = useState(false);
 
   const { data: usersRes, isLoading } = useQuery({
-    queryKey: ['admin-users', role, status, search, page, rowsPerPage],
-    queryFn: () => adminApi.getUsers({ role, status, search, page: page + 1, limit: rowsPerPage })
+    queryKey: ['admin-users', role, status, search, planId, page, rowsPerPage],
+    queryFn: () => adminApi.getUsers({ role, status, search, planId, page: page + 1, limit: rowsPerPage })
   });
 
-  // Fetch detailed info when modal opens
   const { data: detailRes, isLoading: loadingDetail } = useQuery({
     queryKey: ['admin-user-detail', viewingUserId],
     queryFn: () => adminApi.getUserDetail(viewingUserId!),
@@ -62,96 +61,123 @@ const AdminUsers = () => {
     setOpenDetail(true);
   };
 
-  const getRoleChip = (role: string) => {
-    switch (role) {
-      case 'admin': return <Chip label="Admin" color="error" size="small" icon={<Security />} sx={{ fontWeight: 800 }} />;
-      case 'owner': return <Chip label="Chủ sân" color="primary" size="small" icon={<Badge />} sx={{ fontWeight: 800 }} />;
-      default: return <Chip label="Người dùng" color="secondary" variant="outlined" size="small" sx={{ fontWeight: 700 }} />;
-    }
+  const getPlanBadge = (planName: string) => {
+    if (!planName) return null;
+    const isUltra = planName.toLowerCase().includes('ultra');
+    const isPro = planName.toLowerCase().includes('pro');
+    
+    return (
+      <Chip 
+        label={planName.toUpperCase()} 
+        size="small"
+        sx={{ 
+          borderRadius: 0, 
+          fontWeight: 900, 
+          fontSize: '0.65rem',
+          bgcolor: isUltra ? '#7C3AED' : (isPro ? '#10B981' : '#64748B'),
+          color: 'white',
+          height: 20
+        }} 
+      />
+    );
   };
 
   const columns: Column<any>[] = [
     {
       key: 'info',
-      label: 'Thông tin cá nhân',
+      label: 'NGƯỜI DÙNG',
       render: (user: any) => (
         <Stack direction="row" spacing={1.5} alignItems="center">
-          <Avatar src={user.avatar} sx={{ bgcolor: 'secondary.light', color: 'secondary.main', fontWeight: 800 }}>
+          <Avatar 
+            src={user.avatar} 
+            sx={{ 
+                borderRadius: 0, 
+                bgcolor: user.role === 'admin' ? 'error.main' : (user.role === 'owner' ? 'primary.main' : 'secondary.main'), 
+                fontWeight: 800,
+                width: 36, height: 36
+            }}
+          >
             {user.name?.charAt(0)}
           </Avatar>
           <Box>
-            <Typography variant="body2" sx={{ fontWeight: 700 }}>{user.name}</Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
-                <Email sx={{ fontSize: 12, mr: 0.5 }} /> {user.email}
-              </Typography>
-            </Box>
+            <Typography variant="body2" sx={{ fontWeight: 800, fontFamily: 'Times New Roman' }}>{user.name}</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', fontSize: '0.7rem' }}>
+               {user.email}
+            </Typography>
           </Box>
         </Stack>
       )
     },
     {
       key: 'role',
-      label: 'Vai trò',
-      render: (user: any) => getRoleChip(user.role)
+      label: 'VAI TRÒ',
+      render: (user: any) => (
+        <Chip 
+            label={user.role === 'owner' ? 'CHỦ SÂN' : (user.role === 'admin' ? 'ADMIN' : 'PLAYER')} 
+            variant="outlined"
+            size="small" 
+            sx={{ borderRadius: 0, fontWeight: 900, fontSize: '0.65rem', borderWeight: 2 }} 
+        />
+      )
+    },
+    {
+        key: 'subscription',
+        label: 'GÓI DỊCH VỤ',
+        render: (user: any) => {
+            if (user.role !== 'owner') return <Typography variant="caption" color="text.disabled">-</Typography>;
+            const sub = user.activeSubscription;
+            return (
+                <Stack spacing={0.5}>
+                    {sub ? getPlanBadge(sub.option?.plan?.name || 'Active') : <Chip label="MIỄN PHÍ" size="small" sx={{ borderRadius: 0, fontWeight: 800, fontSize: '0.65rem', height: 20 }} />}
+                    {sub && (
+                        <Typography variant="caption" sx={{ fontSize: '0.6rem', fontWeight: 600, color: 'text.secondary' }}>
+                            Hết hạn: {new Date(sub.end_date).toLocaleDateString('vi-VN')}
+                        </Typography>
+                    )}
+                </Stack>
+            );
+        }
     },
     {
       key: 'finance',
-      label: 'Số dư ví',
+      label: 'SỐ DƯ VÍ',
       render: (user: any) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: '#F1F5F9', px: 1, py: 0.5, borderRadius: 1, width: 'fit-content' }}>
-          <Wallet sx={{ fontSize: 14, mr: 0.5, color: 'primary.main' }} />
-          <Typography variant="caption" sx={{ fontWeight: 700 }}>
-            {new Intl.NumberFormat('vi-VN').format(user.wallet_balance || 0)}đ
-          </Typography>
-        </Box>
+        <Typography variant="body2" sx={{ fontWeight: 800, fontFamily: 'Times New Roman', color: 'primary.main' }}>
+          {new Intl.NumberFormat('vi-VN').format(user.wallet_balance || 0)}đ
+        </Typography>
       )
     },
     {
       key: 'status',
-      label: 'Trạng thái',
+      label: 'TRẠNG THÁI',
       render: (user: any) => (
         <Chip 
-          label={user.status === 'active' ? 'Hoạt động' : 'Đã khóa'} 
-          color={user.status === 'active' ? 'success' : 'default'} 
+          label={user.status === 'active' ? 'ACTIVE' : 'LOCKED'} 
+          color={user.status === 'active' ? 'success' : 'error'} 
           size="small" 
-          variant="outlined" 
-          sx={{ fontWeight: 700 }}
+          sx={{ borderRadius: 0, fontWeight: 900, fontSize: '0.65rem', height: 20 }}
         />
       )
     },
     {
       key: 'actions',
-      label: 'Hành động',
+      label: 'THAO TÁC',
       align: 'right',
       render: (user: any) => (
-        <Stack direction="row" spacing={1} justifyContent="flex-end">
-          {user.status === 'active' ? (
-            <Tooltip title="Khóa tài khoản">
-              <IconButton 
-                color="error" size="small"
-                onClick={() => updateStatusMutation.mutate({ id: user.id, status: 'inactive' })}
-                disabled={updateStatusMutation.isPending || user.role === 'admin'}
-              >
-                <Block />
-              </IconButton>
-            </Tooltip>
-          ) : (
-            <Tooltip title="Mở khóa tài khoản">
-              <IconButton 
-                color="success" size="small"
-                onClick={() => updateStatusMutation.mutate({ id: user.id, status: 'active' })}
-                disabled={updateStatusMutation.isPending}
-              >
-                <CheckCircle />
-              </IconButton>
-            </Tooltip>
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+          <IconButton size="small" onClick={() => handleOpenDetail(user)} sx={{ borderRadius: 0, bgcolor: '#F1F5F9', '&:hover': { bgcolor: '#E2E8F0' } }}>
+            <Visibility fontSize="small" color="primary" />
+          </IconButton>
+          {user.role !== 'admin' && (
+             <IconButton 
+                size="small" 
+                color={user.status === 'active' ? 'error' : 'success'}
+                onClick={() => updateStatusMutation.mutate({ id: user.id, status: user.status === 'active' ? 'inactive' : 'active' })}
+                sx={{ borderRadius: 0, bgcolor: '#F1F5F9', '&:hover': { bgcolor: '#E2E8F0' } }}
+             >
+                {user.status === 'active' ? <Block fontSize="small" /> : <CheckCircle fontSize="small" />}
+             </IconButton>
           )}
-          <Tooltip title="Xem chi tiết & Lịch sử">
-            <IconButton size="small" onClick={() => handleOpenDetail(user)}>
-              <Visibility fontSize="small" />
-            </IconButton>
-          </Tooltip>
         </Stack>
       )
     }
@@ -159,19 +185,23 @@ const AdminUsers = () => {
 
   return (
     <Box>
-      <Typography variant="h5" sx={{ fontWeight: 950, mb: 1, letterSpacing: -1 }}>
-        Quản lý Tài khoản 👥
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 4, fontWeight: 500 }}>
-        Quản trị toàn bộ Khách hàng, Chủ sân và Cộng tác viên trên nền tảng.
-      </Typography>
+      <Box sx={{ mb: 4 }}>
+          <Typography variant="h4" sx={{ fontWeight: 950, fontFamily: 'Times New Roman', letterSpacing: -1 }}>
+            Hệ thống Tài khoản 👥
+          </Typography>
+          <Typography variant="body2" color="text.secondary">Quản trị phân quyền và theo dõi trạng thái gói cước của toàn bộ thành viên.</Typography>
+      </Box>
 
-      <Card sx={{ p: 0, borderRadius: 3, border: '1px solid #E2E8F0', boxShadow: 'none', overflow: 'hidden' }}>
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 3, pt: 2, bgcolor: '#F8FAFC' }}>
+      <Card sx={{ borderRadius: 0, border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', overflow: 'hidden' }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 3, pt: 1, bgcolor: '#F8FAFC' }}>
           <Tabs 
             value={role} 
             onChange={(_, val) => { setRole(val); setPage(0); }}
-            sx={{ '& .MuiTab-root': { fontWeight: 800, textTransform: 'none', minWidth: 100 } }}
+            sx={{ 
+                '& .MuiTab-root': { fontWeight: 900, textTransform: 'uppercase', fontSize: '0.75rem', minWidth: 120 },
+                '& .Mui-selected': { color: 'primary.main' },
+                '& .MuiTabs-indicator': { height: 3 }
+            }}
           >
             <Tab label="Tất cả" value="" />
             <Tab label="Người chơi" value="user" />
@@ -180,236 +210,191 @@ const AdminUsers = () => {
           </Tabs>
         </Box>
 
-      <Box sx={{ mt: 3, px: 3 }}>
-        <AdminFilterBar
-          search={search}
-          onSearchChange={(val: string) => { setSearch(val); setPage(0); }}
-          searchPlaceholder="Tìm tên, email, sđt..."
-          onReset={() => {
-            setSearch('');
-            setStatus('');
-            setPage(0);
-          }}
-          disableReset={search === '' && status === ''}
-        >
-          <TextField 
-            select 
-            size="small" 
-            label="Trạng thái" 
-            value={status}
-            onChange={(e) => { setStatus(e.target.value); setPage(0); }}
-            sx={{ minWidth: 160, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-          >
-            <MenuItem value="">Tất cả trạng thái</MenuItem>
-            <MenuItem value="active">Đang hoạt động</MenuItem>
-            <MenuItem value="inactive">Đã khóa</MenuItem>
-          </TextField>
-        </AdminFilterBar>
-      </Box>
+        <Box sx={{ p: 3 }}>
+            <AdminFilterBar
+            search={search}
+            onSearchChange={(val: string) => { setSearch(val); setPage(0); }}
+            searchPlaceholder="Tìm theo tên, email, sđt..."
+            onReset={() => { setSearch(''); setStatus(''); setPlanId(''); setPage(0); }}
+            disableReset={search === '' && status === '' && planId === ''}
+            >
+            {role === 'owner' && (
+                <TextField 
+                    select size="small" label="Gói dịch vụ" value={planId}
+                    onChange={(e) => { setPlanId(e.target.value); setPage(0); }}
+                    sx={{ minWidth: 160, '& .MuiOutlinedInput-root': { borderRadius: 0 } }}
+                >
+                    <MenuItem value="">Tất cả gói</MenuItem>
+                    <MenuItem value="1">Gói Miễn Phí</MenuItem>
+                    <MenuItem value="2">Gói Pro</MenuItem>
+                    <MenuItem value="3">Gói Ultra</MenuItem>
+                </TextField>
+            )}
+            <TextField 
+                select size="small" label="Trạng thái" value={status}
+                onChange={(e) => { setStatus(e.target.value); setPage(0); }}
+                sx={{ minWidth: 160, '& .MuiOutlinedInput-root': { borderRadius: 0 } }}
+            >
+                <MenuItem value="">Tất cả trạng thái</MenuItem>
+                <MenuItem value="active">Đang hoạt động</MenuItem>
+                <MenuItem value="inactive">Đã khóa</MenuItem>
+            </TextField>
+            </AdminFilterBar>
 
-      <Box sx={{ px: 3, pb: 3, mt: 3 }}>
-        <DataTable 
-          columns={columns}
-          data={users}
-          isLoading={isLoading}
-          count={totalUsers}
-          page={page}
-          rowsPerPage={rowsPerPage}
-          onPageChange={(_, newPage) => setPage(newPage)}
-          onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
-        />
-      </Box>
+            <Box sx={{ mt: 3 }}>
+                <DataTable 
+                columns={columns}
+                data={users}
+                isLoading={isLoading}
+                count={totalUsers}
+                page={page}
+                rowsPerPage={rowsPerPage}
+                onPageChange={(_, newPage) => setPage(newPage)}
+                onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+                />
+            </Box>
+        </Box>
       </Card>
 
       {/* User Detail Dialog */}
-      <Dialog open={openDetail} onClose={() => setOpenDetail(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Person color="primary" /> Chi tiết tài liệu quản trị
+      <Dialog open={openDetail} onClose={() => setOpenDetail(false)} maxWidth="md" fullWidth sx={{ '& .MuiPaper-root': { borderRadius: 0 } }}>
+        <DialogTitle sx={{ fontWeight: 950, display: 'flex', alignItems: 'center', gap: 1, fontFamily: 'Times New Roman' }}>
+          HỒ SƠ THÀNH VIÊN
         </DialogTitle>
-        <DialogContent dividers>
+        <DialogContent dividers sx={{ p: 4 }}>
           {loadingDetail ? (
               <Box sx={{ py: 10, textAlign: 'center' }}><CircularProgress /></Box>
           ) : selectedUser ? (
-            <Stack spacing={3}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Stack spacing={4}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                 <Avatar 
                     src={selectedUser.avatar} 
-                    sx={{ width: 80, height: 80, fontSize: '2rem', bgcolor: 'primary.light', fontWeight: 900 }}
+                    sx={{ width: 100, height: 100, borderRadius: 0, border: '4px solid #F1F5F9', bgcolor: 'primary.main', fontWeight: 950, fontSize: '2.5rem' }}
                 >
                   {selectedUser.name?.charAt(0)}
                 </Avatar>
                 <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 800 }}>{selectedUser.name}</Typography>
-                  <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
-                    {getRoleChip(selectedUser.role)}
+                  <Typography variant="h4" sx={{ fontWeight: 950, fontFamily: 'Times New Roman' }}>{selectedUser.name}</Typography>
+                  <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                    <Chip label={selectedUser.role.toUpperCase()} size="small" sx={{ borderRadius: 0, fontWeight: 900, bgcolor: 'black', color: 'white' }} />
                     <Chip 
-                        label={selectedUser.status === 'active' ? 'Hoạt động' : 'Đã khóa'} 
+                        label={selectedUser.status === 'active' ? 'ACTIVE' : 'LOCKED'} 
                         color={selectedUser.status === 'active' ? 'success' : 'error'}
-                        size="small"
-                        sx={{ fontWeight: 700 }}
+                        size="small" sx={{ borderRadius: 0, fontWeight: 900 }}
                     />
-                  </Box>
+                  </Stack>
                 </Box>
               </Box>
 
-              <Divider />
-
-              <Grid container spacing={3}>
+              <Grid container spacing={4}>
                 <Grid item xs={12} md={7}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 2, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
-                        🛡️ THÔNG TIN CƠ BẢN
-                    </Typography>
-                    <Grid container spacing={2}>
-                        <Grid item xs={6}>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>📧 EMAIL</Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 700 }}>{selectedUser.email}</Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>📞 SỐ ĐIỆN THOẠI</Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 700 }}>{selectedUser.phone || 'Chưa cập nhật'}</Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                            <Stack spacing={1}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <CalendarMonth sx={{ fontSize: 16, color: 'text.secondary' }} />
-                                    <Box>
-                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1 }}>NGÀY THAM GIA</Typography>
-                                        <Typography variant="caption" sx={{ fontWeight: 700 }}>
-                                            {new Date(selectedUser.created_at || selectedUser.createdAt).toLocaleDateString('vi-VN')}
-                                        </Typography>
-                                    </Box>
-                                </Box>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <Update sx={{ fontSize: 16, color: 'text.secondary' }} />
-                                    <Box>
-                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1 }}>CẬP NHẬT CUỐI</Typography>
-                                        <Typography variant="caption" sx={{ fontWeight: 700 }}>
-                                            {new Date(selectedUser.updated_at || selectedUser.updatedAt).toLocaleString('vi-VN')}
-                                        </Typography>
-                                    </Box>
-                                </Box>
-                            </Stack>
-                        </Grid>
-                    </Grid>
+                    <Typography variant="overline" sx={{ fontWeight: 900, color: 'text.secondary', display: 'block', mb: 2 }}>Thông tin định danh</Typography>
+                    <Stack spacing={2}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #E2E8F0', pb: 1 }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 700 }}>Email liên hệ:</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 800 }}>{selectedUser.email}</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #E2E8F0', pb: 1 }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 700 }}>Số điện thoại:</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 800 }}>{selectedUser.phone || 'Chưa có'}</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #E2E8F0', pb: 1 }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 700 }}>Ngày gia nhập:</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 800 }}>{new Date(selectedUser.createdAt).toLocaleDateString('vi-VN')}</Typography>
+                        </Box>
+                    </Stack>
                 </Grid>
 
                 <Grid item xs={12} md={5}>
-                    <Box sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: 2, border: '1px solid #E2E8F0', height: '100%' }}>
-                        <Typography variant="caption" color="primary" sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
-                            <Wallet fontSize="inherit" /> TÀI CHÍNH NỀN TẢNG
-                        </Typography>
-                        <Typography variant="h5" sx={{ fontWeight: 950, color: 'primary.main' }}>
+                    <Box sx={{ p: 3, bgcolor: '#0F172A', color: 'white', borderRadius: 0 }}>
+                        <Typography variant="overline" sx={{ fontWeight: 800, opacity: 0.7 }}>SỐ DƯ HIỆN TẠI</Typography>
+                        <Typography variant="h4" sx={{ fontWeight: 950, fontFamily: 'Times New Roman', color: '#10B981', mt: 1 }}>
                             {new Intl.NumberFormat('vi-VN').format(selectedUser.wallet_balance || 0)}đ
                         </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                            {selectedUser.role === 'owner' ? '* Bao gồm doanh thu từ booking chưa rút.' : '* Tiền dư trong tài khoản người chơi.'}
-                        </Typography>
+                        <Box sx={{ mt: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <AccountBalanceWallet sx={{ fontSize: 16, opacity: 0.5 }} />
+                            <Typography variant="caption" sx={{ opacity: 0.7 }}>{selectedUser.role === 'owner' ? 'Doanh thu tích lũy' : 'Ví người dùng'}</Typography>
+                        </Box>
                     </Box>
                 </Grid>
               </Grid>
 
-              {/* Owner Specific Info */}
+              {/* Owner Context: Subscriptions & Venues */}
               {selectedUser.role === 'owner' && (
-                  <Box sx={{ p: 2.5, bgcolor: '#F0F9FF', borderRadius: 2, border: '1px solid #BAE6FD' }}>
-                      <Stack direction="row" spacing={3} divider={<Divider orientation="vertical" flexItem />}>
-                          <Box sx={{ flex: 1 }}>
-                              <Typography variant="caption" sx={{ fontWeight: 800, color: '#0369A1', display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                                  <WorkspacePremium sx={{ fontSize: 18 }} /> GÓI DỊCH VỤ HIỆN TẠI
-                              </Typography>
-                              {userDetail.subscription ? (
-                                  <Box>
-                                      <Typography variant="subtitle1" sx={{ fontWeight: 900 }}>
-                                          {userDetail.subscription.option?.plan?.name}
-                                      </Typography>
-                                      <Typography variant="caption" color="text.secondary">
-                                          Hết hạn: {new Date(userDetail.subscription.end_date).toLocaleDateString('vi-VN')}
-                                      </Typography>
-                                  </Box>
-                              ) : (
-                                  <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>Chưa đăng ký gói</Typography>
-                              )}
-                          </Box>
-                          <Box sx={{ flex: 1 }}>
-                              <Typography variant="caption" sx={{ fontWeight: 800, color: '#0369A1', display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                                  <Store sx={{ fontSize: 18 }} /> CƠ SỞ ĐANG QUẢN LÝ
-                              </Typography>
-                              <Typography variant="h4" sx={{ fontWeight: 950 }}>
-                                  {userDetail.venueCount || 0} <Typography component="span" variant="body2" color="text.secondary">Sân</Typography>
-                              </Typography>
-                          </Box>
-                      </Stack>
+                  <Box>
+                      <Typography variant="overline" sx={{ fontWeight: 900, color: 'text.secondary', display: 'block', mb: 2 }}>Trạng thái vận hành & Gói cước</Typography>
+                      <Grid container spacing={2}>
+                          <Grid item xs={12} sm={8}>
+                             <Box sx={{ p: 2, border: '2px solid', borderColor: userDetail.subscription ? 'primary.main' : '#E2E8F0', borderRadius: 0 }}>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                    <Box>
+                                        <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary' }}>GÓI DỊCH VỤ ĐANG DÙNG</Typography>
+                                        <Typography variant="h6" sx={{ fontWeight: 900 }}>
+                                            {userDetail.subscription?.option?.plan?.name || 'GÓI MIỄN PHÍ'}
+                                        </Typography>
+                                    </Box>
+                                    {userDetail.subscription && getPlanBadge(userDetail.subscription.option?.plan?.name)}
+                                </Stack>
+                                {userDetail.subscription && (
+                                    <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between' }}>
+                                        <Typography variant="caption" sx={{ fontWeight: 700 }}>Hết hạn vào:</Typography>
+                                        <Typography variant="caption" sx={{ fontWeight: 900, color: 'error.main' }}>
+                                            {new Date(userDetail.subscription.end_date).toLocaleDateString('vi-VN')}
+                                        </Typography>
+                                    </Box>
+                                )}
+                             </Box>
+                          </Grid>
+                          <Grid item xs={12} sm={4}>
+                             <Box sx={{ p: 2, bgcolor: '#F8FAFC', border: '1px solid #E2E8F0', height: '100%', textAlign: 'center' }}>
+                                <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary' }}>CƠ SỞ ĐANG QUẢN TRỊ</Typography>
+                                <Typography variant="h3" sx={{ fontWeight: 950, fontFamily: 'Times New Roman', mt: 1 }}>
+                                    {userDetail.venueCount || 0}
+                                </Typography>
+                             </Box>
+                          </Grid>
+                      </Grid>
                   </Box>
               )}
 
-              {/* User Specific Info - Booking History */}
-              {selectedUser.role === 'user' && (
-                  <Box>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 2, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <History /> LỊCH SỬ ĐẶT SÂN GẦN NHẤT
-                      </Typography>
-                      {userDetail.recentBookings?.length > 0 ? (
-                          <Table size="small">
-                              <TableHead>
-                                  <TableRow>
-                                      <TableCell sx={{ fontWeight: 800, fontSize: '0.75rem' }}>Mã đặt sân</TableCell>
-                                      <TableCell sx={{ fontWeight: 800, fontSize: '0.75rem' }}>Cơ sở</TableCell>
-                                      <TableCell sx={{ fontWeight: 800, fontSize: '0.75rem' }}>Thời gian</TableCell>
-                                      <TableCell sx={{ fontWeight: 800, fontSize: '0.75rem' }}>Tổng tiền</TableCell>
-                                      <TableCell sx={{ fontWeight: 800, fontSize: '0.75rem' }}>Trạng thái</TableCell>
-                                  </TableRow>
-                              </TableHead>
-                              <TableBody>
-                                  {userDetail.recentBookings.map((bk: any) => (
-                                      <TableRow key={bk.id}>
-                                          <TableCell sx={{ fontSize: '0.75rem', fontWeight: 700 }}>{bk.booking_code}</TableCell>
-                                          <TableCell sx={{ fontSize: '0.75rem' }}>{bk.venue?.name}</TableCell>
-                                          <TableCell sx={{ fontSize: '0.75rem' }}>{new Date(bk.created_at).toLocaleDateString('vi-VN')}</TableCell>
-                                          <TableCell sx={{ fontSize: '0.75rem', fontWeight: 700 }}>{new Intl.NumberFormat('vi-VN').format(bk.total_price)}đ</TableCell>
-                                          <TableCell>
-                                              <Chip 
-                                                label={bk.status === 'confirmed' ? 'Thành công' : bk.status} 
-                                                size="small" 
-                                                color={bk.status === 'confirmed' ? 'success' : 'default'}
-                                                sx={{ height: 18, fontSize: '0.65rem', fontWeight: 800 }} 
-                                              />
-                                          </TableCell>
-                                      </TableRow>
-                                  ))}
-                              </TableBody>
-                          </Table>
-                      ) : (
-                          <Alert severity="info" sx={{ py: 0 }}>Người dùng này chưa có đơn đặt sân nào.</Alert>
-                      )}
+              {/* Subscription History for Owner */}
+              {selectedUser.role === 'owner' && (
+                  <Box sx={{ mt: 2 }}>
+                       <Typography variant="overline" sx={{ fontWeight: 900, color: 'text.secondary', display: 'block', mb: 2 }}>Lịch sử sở hữu gói dịch vụ</Typography>
+                       <DataTable 
+                        columns={[
+                            { key: 'plan', label: 'GÓI / OPTION', render: (p: any) => <Typography variant="caption" sx={{ fontWeight: 800 }}>{p.option?.plan?.name || 'Gói dịch vụ'}</Typography> },
+                            { key: 'amount', label: 'SỐ TIỀN', render: (p: any) => <Typography variant="caption" sx={{ fontWeight: 900, color: 'primary.main' }}>{p.amount_paid > 0 ? `${new Intl.NumberFormat('vi-VN').format(p.amount_paid)}đ` : '0đ'}</Typography> },
+                            { key: 'start', label: 'TỪ NGÀY', render: (p: any) => <Typography variant="caption">{new Date(p.start_date).toLocaleDateString('vi-VN')}</Typography> },
+                            { key: 'end', label: 'ĐẾN NGÀY', render: (p: any) => <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 800 }}>{new Date(p.end_date).toLocaleDateString('vi-VN')}</Typography> },
+                            { key: 'status', label: 'TRẠNG THÁI', render: (p: any) => (
+                                <Chip 
+                                    label={p.status.toUpperCase()} 
+                                    size="small" 
+                                    sx={{ borderRadius: 0, fontWeight: 900, height: 16, fontSize: '0.55rem', bgcolor: p.status === 'active' ? '#DCFCE7' : '#F1F5F9', color: p.status === 'active' ? '#166534' : 'text.secondary' }} 
+                                />
+                            )}
+                        ]}
+                        data={userDetail.subscriptionHistory || []}
+                        isLoading={false}
+                        hidePagination
+                       />
                   </Box>
               )}
             </Stack>
           ) : (
-            <Alert severity="warning">Không tìm thấy dữ liệu người dùng.</Alert>
+            <Alert severity="warning" sx={{ borderRadius: 0 }}>Không tìm thấy dữ liệu thành viên này.</Alert>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2, bgcolor: '#F8FAFC' }}>
-          <Button onClick={() => setOpenDetail(false)} sx={{ fontWeight: 700, textTransform: 'none' }}>Đóng cửa sổ</Button>
-          {selectedUser?.status === 'active' ? (
+        <DialogActions sx={{ p: 3, bgcolor: '#F8FAFC' }}>
+          <Button onClick={() => setOpenDetail(false)} sx={{ fontWeight: 800, borderRadius: 0, textTransform: 'none' }}>Đóng cửa sổ</Button>
+          {selectedUser?.status === 'active' && selectedUser?.role !== 'admin' && (
               <Button 
-                variant="outlined" 
-                color="error" 
-                startIcon={<Block />}
+                variant="contained" color="error" startIcon={<Block />}
                 onClick={() => updateStatusMutation.mutate({ id: selectedUser.id, status: 'inactive' })}
-                disabled={updateStatusMutation.isPending || selectedUser.role === 'admin'}
-                sx={{ fontWeight: 700, textTransform: 'none' }}
+                sx={{ fontWeight: 900, borderRadius: 0, px: 3, textTransform: 'none' }}
               >
-                Khóa vĩnh viễn
-              </Button>
-          ) : (
-              <Button 
-                variant="contained" 
-                color="success" 
-                startIcon={<CheckCircle />}
-                onClick={() => updateStatusMutation.mutate({ id: selectedUser.id, status: 'active' })}
-                disabled={updateStatusMutation.isPending}
-                sx={{ fontWeight: 700, textTransform: 'none' }}
-              >
-                Kích hoạt lại
+                KHÓA TÀI KHOẢN
               </Button>
           )}
         </DialogActions>
