@@ -151,15 +151,15 @@ const FEATURE_LABELS: Record<string, string> = {
 };
 
 const TIER_CONFIG: Record<string, any> = {
-  free:    { color: '#64748B', gradient: 'linear-gradient(135deg,#64748B,#94A3B8)', icon: <Spa sx={{ fontSize: 28 }} />,              tier: 0 },
-  basic:   { color: '#3B82F6', gradient: 'linear-gradient(135deg,#2563EB,#60A5FA)', icon: <Bolt sx={{ fontSize: 28 }} />,             tier: 1 },
-  premium: { color: '#8B5CF6', gradient: 'linear-gradient(135deg,#7C3AED,#C084FC)', icon: <WorkspacePremium sx={{ fontSize: 28 }} />, tier: 2 },
+  free:  { color: '#64748B', gradient: 'linear-gradient(135deg,#64748B,#94A3B8)', icon: <Spa sx={{ fontSize: 24 }} />, bgTint: '#F8FAFC' },
+  pro:   { color: '#16A34A', gradient: 'linear-gradient(135deg,#16A34A,#22C55E)', icon: <Bolt sx={{ fontSize: 24 }} />, bgTint: '#F0FDF4' },
+  ultra: { color: '#8B5CF6', gradient: 'linear-gradient(135deg,#7C3AED,#C084FC)', icon: <WorkspacePremium sx={{ fontSize: 24 }} />, bgTint: '#F5F3FF' },
 };
 
-const getTierKey = (name: string): string => {
+const getTierKey = (name: string, index: number): string => {
   const n = (name || '').toLowerCase();
-  if (n.includes('premium') || n.includes('chuyên')) return 'premium';
-  if (n.includes('basic')   || n.includes('bản'))    return 'basic';
+  if (n.includes('ultra') || index === 2) return 'ultra';
+  if (n.includes('pro') || index === 1)   return 'pro';
   return 'free';
 };
 
@@ -183,7 +183,7 @@ const HomePage = () => {
     queryFn: () => subscriptionApi.getPlans(),
   });
 
-  const plans = (plansRes as any) || [];
+  const plans = Array.isArray(plansRes) ? plansRes : (plansRes as any)?.data || [];
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -549,78 +549,126 @@ const HomePage = () => {
             </FadeUp>
           </Box>
 
-          <Grid container spacing={3} justifyContent="center" alignItems="stretch">
+          <Grid container spacing={4} justifyContent="center" alignItems="stretch">
             {loadingPlans ? (
               <Box sx={{ py: 10, textAlign: 'center', width: '100%' }}><CircularProgress /></Box>
-            ) : plans.map((plan: any, i: number) => {
-              const tKey = getTierKey(plan.name);
+            ) : plans.slice(0, 3).map((plan: any, i: number) => {
+              const tKey = getTierKey(plan.name, i);
               const conf = TIER_CONFIG[tKey] || TIER_CONFIG.free;
               const opts = plan.options || [];
               if (!opts.length) return null;
               
-              // On public page, we show the 1-month or cheapest option as primary
-              const activeOpt = opts.sort((a: any, b: any) => a.price - b.price)[0];
-              const isBasic = tKey === 'basic';
+              const sortedOpts = [...opts].sort((a: any, b: any) => a.price - b.price);
+              const isPro = tKey === 'pro';
 
               return (
-                <Grid item xs={12} md={4} key={plan.id} sx={{ display: 'flex' }}>
+                <Grid item xs={12} sm={6} md={4} key={plan.id} sx={{ display: 'flex' }}>
                    <FadeUp delay={0.2 + (i * 0.1)} sx={{ flex: 1, display: 'flex' }}>
                     <Card sx={{ 
-                      flex: 1, borderRadius: 5, display: 'flex', flexDirection: 'column',
-                      border: isBasic ? `2.5px solid ${conf.color}` : '1.5px solid #E2E8F0',
-                      position: 'relative', overflow: 'hidden',
-                      boxShadow: isBasic ? `0 20px 50px -12px ${conf.color}33` : '0 4px 12px rgba(0,0,0,0.03)',
-                      transition: 'transform 0.3s',
-                      "&:hover": { transform: "translateY(-8px)" }
+                      flex: 1, borderRadius: 0, display: 'flex', flexDirection: 'column',
+                      border: `1px solid #E2E8F0`,
+                      borderTop: `4px solid ${conf.color}`,
+                      position: 'relative', overflow: 'visible',
+                      bgcolor: '#fff',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+                      transition: 'all 0.3s',
+                      "&:hover": { transform: "translateY(-8px)", boxShadow: `0 12px 32px rgba(0,0,0,0.08)` }
                     }}>
-                      <Box sx={{ background: conf.gradient, p: 3, color: 'white' }}>
-                        <Stack direction="row" alignItems="center" spacing={1.5} mb={1.5}>
-                           <Box sx={{ p: 1, bgcolor: 'rgba(255,255,255,0.2)', borderRadius: 2 }}>{conf.icon}</Box>
-                           <Box>
-                              <Typography variant="subtitle1" sx={{ fontWeight: 900, lineHeight: 1.2 }}>{plan.name}</Typography>
-                              <Typography sx={{ fontSize: '0.75rem', opacity: 0.85 }}>{durationLabel(activeOpt.duration_months)}</Typography>
-                           </Box>
-                        </Stack>
-                        <Typography sx={{ fontSize: '0.8rem', opacity: 0.9, height: 36, overflow: 'hidden' }}>{plan.description}</Typography>
+                      {isPro && (
+                        <Box sx={{ 
+                          position: 'absolute', top: -28, left: '50%', transform: 'translateX(-50%)',
+                          bgcolor: conf.color, color: 'white', px: 2, py: 0.5, 
+                          fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: 1,
+                          zIndex: 10
+                        }}>
+                          Phổ biến nhất
+                        </Box>
+                      )}
+
+                      <Box sx={{ p: 4, textAlign: 'center', borderBottom: '1px solid #F1F5F9' }}>
+                         <Box sx={{ 
+                           width: 52, height: 52, borderRadius: 0, background: conf.gradient, 
+                           color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                           mx: 'auto', mb: 2, boxShadow: `0 4px 12px ${conf.color}30`
+                         }}>
+                           {conf.icon}
+                         </Box>
+                         <Typography sx={{ fontWeight: 950, fontSize: '1.25rem', color: '#0F172A', mb: 0.5, fontFamily: '"Sora", sans-serif' }}>
+                           {plan.name}
+                         </Typography>
+                         <Typography sx={{ fontSize: '0.85rem', color: '#64748B', minHeight: 40 }}>
+                           {plan.description}
+                         </Typography>
                       </Box>
 
                       <Box sx={{ p: 3, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                        <Box sx={{ mb: 3 }}>
-                           <Typography sx={{ fontWeight: 950, fontSize: '2rem', color: conf.color, lineHeight: 1 }}>{fmt(activeOpt.price)}</Typography>
-                           {parseFloat(activeOpt.price) > 0 && <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>/ {durationLabel(activeOpt.duration_months).toLowerCase()}</Typography>}
-                        </Box>
-                        
+                        <Stack spacing={1} sx={{ mb: 4 }}>
+                          {sortedOpts.map((opt: any) => (
+                            <Box key={opt.id} sx={{ 
+                              p: 2, borderRadius: 0, bgcolor: '#F8FAFC', border: '1px solid #F1F5F9',
+                              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                              transition: 'all 0.2s',
+                              '&:hover': { borderColor: conf.color, bgcolor: '#fff' }
+                            }}>
+                              <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569' }}>
+                                {durationLabel(opt.duration_months)}
+                              </Typography>
+                              <Typography sx={{ fontSize: '1.1rem', fontWeight: 950, color: conf.color }}>
+                                {fmt(opt.price)}
+                              </Typography>
+                            </Box>
+                          ))}
+                        </Stack>
+
                         <Divider sx={{ mb: 3, borderStyle: 'dashed' }} />
                         
                         <Stack spacing={1.5} sx={{ mb: 4 }}>
                           <Stack direction="row" spacing={1.2} alignItems="center">
                             <Storefront sx={{ fontSize: 16, color: conf.color }} />
-                            <Typography sx={{ fontWeight: 700, fontSize: '0.85rem' }}><b>{activeOpt.max_venues}</b> cơ sở · <b>{activeOpt.max_courts_per_venue}</b> sân/cơ sở</Typography>
+                            <Typography sx={{ fontWeight: 700, fontSize: '0.85rem', color: '#334155' }}>
+                              <b>{sortedOpts[0].max_venues}</b> Cơ sở · <b>{sortedOpts[0].max_courts_per_venue}</b> Sân/Cơ sở
+                            </Typography>
                           </Stack>
-                          {Object.entries(activeOpt.features || {}).map(([k, v]: any) => (
+                          {Object.entries(sortedOpts[0].features || {}).map(([k, v]: any) => (
                             <Stack key={k} direction="row" spacing={1.2} alignItems="center">
-                              {v ? <CheckCircle sx={{ fontSize: 16, color: conf.color }} /> : <Cancel sx={{ fontSize: 16, color: '#CBD5E1' }} />}
-                              <Typography sx={{ fontWeight: 600, fontSize: '0.85rem', color: v ? 'text.primary' : 'text.disabled' }}>{FEATURE_LABELS[k] || k}</Typography>
+                              <Box sx={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {v ? (
+                                  <CheckCircle sx={{ fontSize: 18, color: conf.color }} />
+                                ) : (
+                                  <Cancel sx={{ fontSize: 18, color: '#CBD5E1' }} />
+                                )}
+                              </Box>
+                              <Typography sx={{ 
+                                fontWeight: 600, fontSize: '0.85rem', 
+                                color: v ? '#334155' : '#94A3B8'
+                              }}>
+                                {FEATURE_LABELS[k] || k}
+                              </Typography>
                             </Stack>
                           ))}
                         </Stack>
-
+ 
                         <Box sx={{ mt: 'auto' }}>
                           <Button 
                             fullWidth 
                             component={Link}
                             to="/register-owner"
-                            variant={isBasic ? "contained" : "outlined"}
+                            variant="contained"
                             size="large"
                             sx={{ 
-                              py: 1.8, borderRadius: 3, fontWeight: 900, fontSize: '0.85rem',
-                              bgcolor: isBasic ? conf.color : 'transparent',
-                              borderColor: conf.color,
-                              color: isBasic ? 'white' : conf.color,
-                              '&:hover': { bgcolor: isBasic ? conf.color : 'transparent', filter: 'brightness(1.1)', borderWidth: 2.5 }
+                              py: 1.8, borderRadius: 0, fontWeight: 900, fontSize: '0.9rem',
+                              textTransform: 'none',
+                              background: conf.gradient,
+                              boxShadow: `0 4px 12px ${conf.color}30`,
+                              transition: 'all 0.3s',
+                              '&:hover': { 
+                                transform: 'translateY(-2px)',
+                                boxShadow: `0 8px 20px ${conf.color}40`,
+                                background: conf.gradient, filter: 'brightness(1.1)'
+                              }
                             }}
                           >
-                            Đăng ký ngay
+                            Chọn gói này
                           </Button>
                         </Box>
                       </Box>
