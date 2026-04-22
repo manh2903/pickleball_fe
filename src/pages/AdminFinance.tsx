@@ -22,7 +22,9 @@ import AdminFilterBar from '@/components/AdminFilterBar';
 const AdminFinance = () => {
   const [tabValue, setTabValue] = useState(0);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const [openDetail, setOpenDetail] = useState(false);
+  const [openPaymentDetail, setOpenPaymentDetail] = useState(false);
   const [transRef, setTransRef] = useState('');
   const [rejectReason, setRejectReason] = useState('');
   const [adminNote, setAdminNote] = useState('');
@@ -161,24 +163,41 @@ const AdminFinance = () => {
       label: 'Chủ sân (Người mua)',
       render: (row) => (
         <Box>
-          <Typography variant="body2" sx={{ fontWeight: 700 }}>{row.user?.name}</Typography>
-          <Typography variant="caption" color="text.secondary">{row.user?.email}</Typography>
+          <Typography variant="body2" sx={{ fontWeight: 700 }}>{row.payer?.name}</Typography>
+          <Typography variant="caption" color="text.secondary">{row.payer?.email}</Typography>
         </Box>
       )
     },
     {
       key: 'plan',
       label: 'Gói nâng cấp',
-      render: (row) => (
-        <Stack direction="row" spacing={1} alignItems="center">
-            <Box sx={{ p:0.5, bgcolor: 'secondary.light', color: 'secondary.main', borderRadius: 1 }}>
-                <WorkspacePremium sx={{ fontSize: 16 }} />
-            </Box>
-            <Typography variant="body2" sx={{ fontWeight: 800 }}>
-                {row.subscriptionOption?.plan?.name}
-            </Typography>
-        </Stack>
-      )
+      render: (row) => {
+        const planName = row.option?.plan?.name || '';
+        let color = '#64748B'; // Default Gray
+        let bgColor = '#F1F5F9';
+        
+        if (planName.includes('Pro')) { color = '#16A34A'; bgColor = '#DCFCE7'; }
+        else if (planName.includes('Ultra')) { color = '#7C3AED'; bgColor = '#F3E8FF'; }
+        else if (planName.includes('Enterprise')) { color = '#0F172A'; bgColor = '#F1F5F9'; }
+
+        return (
+          <Box sx={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: 1, 
+            bgcolor: bgColor, 
+            color: color, 
+            px: 1.5, 
+            py: 0.5, 
+            borderLeft: `3px solid ${color}` 
+          }}>
+              <WorkspacePremium sx={{ fontSize: 16 }} />
+              <Typography variant="caption" sx={{ fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  {planName}
+              </Typography>
+          </Box>
+        );
+      }
     },
     {
       key: 'amount',
@@ -195,9 +214,29 @@ const AdminFinance = () => {
       render: (row) => <Chip label={row.method?.toUpperCase()} size="small" variant="outlined" sx={{ fontWeight: 700, fontSize: '0.6rem' }} />
     },
     {
+      key: 'status',
+      label: 'Trạng thái',
+      render: (row) => {
+        const color = row.status === 'completed' ? 'success' : (row.status === 'pending' ? 'warning' : 'error');
+        return <Chip label={row.status?.toUpperCase()} color={color} size="small" sx={{ fontWeight: 800, fontSize: '0.65rem' }} />;
+      }
+    },
+    {
       key: 'date',
       label: 'Thời gian',
-      render: (row) => new Date(row.created_at).toLocaleString('vi-VN')
+      render: (row) => new Date(row.createdAt).toLocaleString('vi-VN')
+    },
+    {
+      key: 'actions',
+      label: 'Thao tác',
+      align: 'right',
+      render: (row) => (
+        <Tooltip title="Chi tiết thanh toán">
+          <IconButton size="small" color="primary" onClick={() => { setSelectedPayment(row); setOpenPaymentDetail(true); }}>
+            <Visibility fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )
     }
   ];
 
@@ -296,6 +335,85 @@ const AdminFinance = () => {
               <Button variant="contained" color="success" onClick={() => handleProcess('completed')}>Hoàn tất chuyển tiền</Button>
             </>
           )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Payment Detail Dialog */}
+      <Dialog open={openPaymentDetail} onClose={() => setOpenPaymentDetail(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800, fontFamily: 'Times New Roman' }}>Chi tiết giao dịch thanh toán</DialogTitle>
+        <DialogContent dividers>
+          {selectedPayment && (
+            <Stack spacing={3}>
+              <Box sx={{ p: 2, bgcolor: '#F8FAFC', borderLeft: '4px solid #16A34A', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>Hóa đơn giá trị</Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 950, color: '#16A34A' }}>
+                    {new Intl.NumberFormat('vi-VN').format(selectedPayment.amount)}đ
+                    </Typography>
+                </Box>
+                <Chip 
+                    label={selectedPayment.status?.toUpperCase()} 
+                    color={selectedPayment.status === 'completed' ? 'success' : 'warning'} 
+                    sx={{ fontWeight: 900, borderRadius: 0 }}
+                />
+              </Box>
+
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1, color: 'primary.main' }}>Thông tin khách hàng</Typography>
+                <Stack spacing={1}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">Họ tên:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{selectedPayment.payer?.name}</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">Email:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{selectedPayment.payer?.email}</Typography>
+                    </Box>
+                </Stack>
+              </Box>
+
+              <Divider />
+
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1, color: 'primary.main' }}>Chi tiết gói dịch vụ</Typography>
+                <Stack spacing={1}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">Gói đăng ký:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 800, color: 'secondary.main' }}>{selectedPayment.option?.plan?.name}</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">Thời hạn:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{selectedPayment.option?.duration_months} tháng</Typography>
+                    </Box>
+                </Stack>
+              </Box>
+
+              <Divider />
+
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1, color: 'primary.main' }}>Thông tin giao dịch</Typography>
+                <Stack spacing={1}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">Phương thức:</Typography>
+                        <Chip label={selectedPayment.method?.toUpperCase()} size="small" sx={{ fontWeight: 700, fontSize: '0.65rem' }} />
+                    </Box>
+                    <Box>
+                        <Typography variant="body2" color="text.secondary">Mã giao dịch:</Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 600, fontFamily: 'monospace', wordBreak: 'break-all', bgcolor: '#F1F5F9', p: 0.5 }}>
+                            {selectedPayment.transaction_id}
+                        </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">Thời gian:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{new Date(selectedPayment.createdAt).toLocaleString('vi-VN')}</Typography>
+                    </Box>
+                </Stack>
+              </Box>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenPaymentDetail(false)} variant="contained" sx={{ borderRadius: 0 }}>Đóng</Button>
         </DialogActions>
       </Dialog>
     </Box>
