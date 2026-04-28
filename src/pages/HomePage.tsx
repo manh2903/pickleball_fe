@@ -433,6 +433,20 @@ const HomePage = () => {
                       border: "4px solid #fff",
                       boxShadow: "0 40px 80px rgba(15,23,42,.15),0 0 0 1px #E2E8F0",
                       display: "block",
+                      transform: "rotate(-10deg)",
+                    }}
+                  />
+                  <Box
+                    component="img"
+                    src="https://thegioibackground.com/wp-content/uploads/2025/04/banner-pickleball-9.jpg"
+                    alt="Pickleball"
+                    sx={{
+                      width: "88%",
+                      borderRadius: 0,
+                      border: "4px solid #fff",
+                      boxShadow: "0 40px 80px rgba(15,23,42,.15),0 0 0 1px #E2E8F0",
+                      display: "block",
+                      transform: "rotate(10deg)",
                     }}
                   />
                 </Box>
