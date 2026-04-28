@@ -42,9 +42,9 @@ const colorJump = keyframes`
   40% { color: inherit; transform: translateY(0); }
 `;
 const strokeJump = keyframes`
-  0%, 100% { WebkitTextStrokeColor: #16A34A; transform: translateY(0); }
-  20% { WebkitTextStrokeColor: #4ADE80; transform: translateY(-10px); filter: drop-shadow(0 0 10px rgba(74,222,128,0.5)); }
-  40% { WebkitTextStrokeColor: #16A34A; transform: translateY(0); }
+  0%, 100% { WebkitTextStrokeColor: #16A34A; color: transparent; transform: translateY(0); }
+  20% { WebkitTextStrokeColor: #4ADE80; color: #16A34A; transform: translateY(-10px); filter: drop-shadow(0 0 10px rgba(74,222,128,0.5)); }
+  40% { WebkitTextStrokeColor: #16A34A; color: transparent; transform: translateY(0); }
 `;
 
 /* ── Observer-based FadeUp ───────────────────────────────── */
