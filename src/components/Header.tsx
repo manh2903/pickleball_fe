@@ -68,7 +68,7 @@ const Header = () => {
                   <Divider />
                   <MenuItem onClick={() => { handleCloseMenu(); navigate('/profile'); }}>Hồ sơ</MenuItem>
                   <MenuItem onClick={() => { handleCloseMenu(); navigate('/my-bookings'); }}>Lịch đặt của tôi</MenuItem>
-                  {user?.role === 'owner' && (
+                  {(user?.role === 'owner' || user?.role === 'staff') && (
                     <MenuItem onClick={() => { handleCloseMenu(); navigate('/owner/dashboard'); }} sx={{ color: 'primary.main', fontWeight: 600 }}>Quản trị Sân</MenuItem>
                   )}
                   {user?.role === 'admin' && (

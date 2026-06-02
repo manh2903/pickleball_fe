@@ -145,8 +145,20 @@ const OwnerLayout = () => {
 
       <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 2, pb: 4 }}>
         {menuGroups.map((group) => {
-          // Filter items based on subscription features
+          // Filter items based on subscription features and user role
           const visibleItems = group.items.filter(item => {
+            // Staff is only allowed to access specific operational paths
+            if (user?.role === 'staff') {
+              const staffAllowedPaths = [
+                '/owner/dashboard',
+                '/owner/bookings',
+                '/owner/courts',
+                '/owner/incidents',
+                '/owner/reviews'
+              ];
+              const isAllowed = staffAllowedPaths.some(p => item.path.startsWith(p));
+              if (!isAllowed) return false;
+            }
             // If item doesn't require a specific feature, show it
             if (!item.feature) return true;
             // If sub is still loading, hide feature-gated items to avoid flicker
@@ -272,7 +284,7 @@ const OwnerLayout = () => {
         <Box sx={{ py: 2, px: { xs: 2, md: 4 }, bgcolor: 'white', borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100, backdropFilter: 'blur(12px)', background: 'rgba(255, 255, 255, 0.9)' }}>
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 900, fontFamily: 'Times New Roman', color: '#1E293B' }}>
-               Chào mừng, {user?.name} - Chủ sân! 👋 
+               Chào mừng, {user?.name} - {user?.role === 'staff' ? 'Nhân viên' : 'Chủ sân'}! 👋 
             </Typography>
           </Box>
           <Stack direction="row" spacing={2} alignItems="center">

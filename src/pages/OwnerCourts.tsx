@@ -14,11 +14,14 @@ import {
 import { useSnackbar } from 'notistack';
 import { ownerApi } from '@/api/ownerApi';
 import DataTable, { Column } from '@/components/DataTable';
+import { useAuthStore } from '@/stores/authStore';
 
 const OwnerCourts = () => {
   const { venueId }: any = useOutletContext();
   const queryClient = useQueryClient();
   const { enqueueSnackbar } = useSnackbar();
+  const { user } = useAuthStore();
+  const isStaff = user?.role === 'staff';
   
   // Pagination & Filtering
   const [page, setPage] = useState(0);
@@ -231,7 +234,7 @@ const OwnerCourts = () => {
          </Box>
        )
     }
-  ];
+  ].filter(col => !isStaff || col.key !== 'actions');
 
   return (
     <Box>
@@ -241,15 +244,17 @@ const OwnerCourts = () => {
             <Typography variant="h5" sx={{ fontWeight: 950, fontFamily: 'Times New Roman' }}>Quản lý Danh sách Sân con 🏸</Typography>
             <Typography variant="body2" color="text.secondary">Giá được in đậm nếu ghi đè riêng cho sân này.</Typography>
           </Box>
-          <Button 
-            variant="contained" 
-            disableElevation
-            startIcon={<Add />} 
-            onClick={() => handleOpen()}
-            sx={{ px: 4, py: 1.2, borderRadius: 2, fontWeight: 900 }}
-          >
-            THÊM SÂN MỚI
-          </Button>
+          {!isStaff && (
+            <Button 
+              variant="contained" 
+              disableElevation
+              startIcon={<Add />} 
+              onClick={() => handleOpen()}
+              sx={{ px: 4, py: 1.2, borderRadius: 2, fontWeight: 900 }}
+            >
+              THÊM SÂN MỚI
+            </Button>
+          )}
         </Box>
 
         <DataTable 

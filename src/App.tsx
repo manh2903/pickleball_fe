@@ -48,10 +48,13 @@ import { socketService } from './utils/socket';
 import { useEffect } from 'react';
 
 // Guard for routes
-const ProtectedRoute = ({ children, role }: { children: React.ReactNode, role?: string }) => {
+const ProtectedRoute = ({ children, role, roles }: { children: React.ReactNode, role?: string, roles?: string[] }) => {
   const { isAuthenticated, user } = useAuthStore();
   if (!isAuthenticated) return <Navigate to="/login" />;
-  if (role && user?.role !== role) return <Navigate to="/" />;
+  const allowedRoles = roles || (role ? [role] : []);
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role || '')) {
+    return <Navigate to="/" />;
+  }
   return <>{children}</>;
 };
 
@@ -84,7 +87,7 @@ function App() {
           <Route path="/profile" element={<ProfilePage />} />
           
           {/* Owner Dashboard Routes */}
-          <Route path="/owner" element={<ProtectedRoute role="owner"><OwnerLayout /></ProtectedRoute>}>
+          <Route path="/owner" element={<ProtectedRoute roles={['owner', 'staff']}><OwnerLayout /></ProtectedRoute>}>
             <Route index element={<Navigate to="/owner/dashboard" />} />
             <Route path="dashboard" element={<OwnerDashboard />} />
             <Route path="bookings" element={<OwnerBookings />} />
