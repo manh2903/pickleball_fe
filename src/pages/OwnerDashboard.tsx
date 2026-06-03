@@ -73,7 +73,7 @@ const OwnerDashboard = () => {
 
   const { data: analyticsRes } = useQuery({
     queryKey: ['owner-analytics', venueId],
-    queryFn: () => ownerApi.getAnalytics(venueId),
+    queryFn: () => ownerApi.getAnalytics({ venue_id: venueId }),
     enabled: !!venueId && hasAnalytics,
   });
 
@@ -188,7 +188,10 @@ const OwnerDashboard = () => {
                             </Avatar>
                             <Box>
                                 <Typography variant="body2" sx={{ fontWeight: 800 }}>{booking.user?.name || booking.customer_name || 'Vãng lai'}</Typography>
-                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>{booking.user?.phone || booking.customer_phone}</Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block' }}>{booking.user?.phone || booking.customer_phone}</Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500, display: 'block', fontSize: '0.75rem', mt: 0.5 }}>
+                                  Mã: <span style={{ fontWeight: 700 }}>#{booking.booking_code}</span> • Đặt lúc: {new Date(booking.createdAt).toLocaleDateString('vi-VN')}
+                                </Typography>
                             </Box>
                           </Stack>
                         </TableCell>
@@ -198,7 +201,10 @@ const OwnerDashboard = () => {
                               <Typography variant="body2" sx={{ fontWeight: 700 }}>
                                 {uniqueCourts.join(', ')}
                               </Typography>
-                              <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#64748B', fontWeight: 600 }}>
+                              <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 600 }}>
+                                Ngày chơi: {slots[0]?.date ? new Date(slots[0].date).toLocaleDateString('vi-VN') : ''}
+                              </Typography>
+                              <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#64748B', fontWeight: 600, mt: 0.5 }}>
                                 <AccessTime sx={{ fontSize: 14 }} /> 
                                 {startTime} - {endTime}
                               </Typography>

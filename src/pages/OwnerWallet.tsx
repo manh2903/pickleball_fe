@@ -3,17 +3,15 @@ import {
   Box, Typography, Card, Grid, Stack, Button, 
   Paper, Chip, TextField,
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Alert, Tooltip
+  Alert, Tooltip, Table, TableBody, TableCell,
+  TableContainer, TableHead, TableRow
 } from '@mui/material';
 import { 
   AccountBalanceWallet, CallMade, 
   ReceiptLong, Lock, TrendingUp, InfoOutlined
 } from '@mui/icons-material';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip as ReTooltip, ResponsiveContainer, Cell
-} from 'recharts';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import Chart, { useChart } from '@/components/chart';
 import { withdrawalApi } from '@/api/withdrawalApi';
 import { ownerApi } from '@/api/ownerApi';
 import { authApi } from '@/api/authApi';
@@ -30,6 +28,8 @@ const OwnerWallet = () => {
   const [bankName, setBankName] = useState('');
   const [bankAcc, setBankAcc] = useState('');
   const [bankAccName, setBankAccName] = useState('');
+
+  // Analytics query client and snackbar
   
   const queryClient = useQueryClient();
   const { enqueueSnackbar } = useSnackbar();
@@ -50,7 +50,7 @@ const OwnerWallet = () => {
   const { data: meData, refetch: refetchMe } = useQuery({
     queryKey: ['auth-me-wallet'],
     queryFn: () => authApi.getMe(),
-    refetchInterval: 30_000,       // Poll every 30 seconds
+    refetchInterval: 30_000,
     staleTime: 10_000,
   });
 
@@ -68,7 +68,7 @@ const OwnerWallet = () => {
       refetchMe();
       queryClient.invalidateQueries({ queryKey: ['owner-analytics-wallet'] });
       queryClient.invalidateQueries({ queryKey: ['owner-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['owner-cashflow'] }); // Đổi từ my-withdrawals
+      queryClient.invalidateQueries({ queryKey: ['owner-cashflow'] });
     };
 
     socketService.socket?.on('booking-status-updated', handleBookingUpdate);
@@ -80,15 +80,15 @@ const OwnerWallet = () => {
     };
   }, [socketService.socket]);
 
-  // --- Real-time: Socket listener for withdrawal status update (Admin duyệt / từ chối) ---
+  // --- Real-time: Socket listener for withdrawal status update ---
   useEffect(() => {
     const handleWithdrawalUpdate = (notif: any) => {
       if (
         notif?.type === 'withdrawal_approved' ||
         notif?.type === 'withdrawal_rejected'
       ) {
-        refetchMe();  // Cập nhật lại số dư ví nếu bị từ chối (tiền được hoàn lại)
-        queryClient.invalidateQueries({ queryKey: ['owner-cashflow'] }); // Cập nhật lịch sử
+        refetchMe();
+        queryClient.invalidateQueries({ queryKey: ['owner-cashflow'] });
         enqueueSnackbar(notif.title, { variant: notif.type === 'withdrawal_approved' ? 'success' : 'error' });
       }
     };
@@ -105,21 +105,136 @@ const OwnerWallet = () => {
   const pendingBalance = freshUser?.pending_balance ?? 0;
   const availableBalance = freshUser?.available_balance ?? walletBalance;
 
-  // 1. Fetch Cashflow (Replaces Withdrawals and Payments)
+  // 1. Fetch Cashflow
   const { data: cashflowRes, isLoading: loadingCashflow } = useQuery({
     queryKey: ['owner-cashflow'],
     queryFn: () => ownerApi.getCashflow(),
   });
   const cashflows = cashflowRes || [];
 
+  // Date range states (default: first day of current month to today)
+  const [startDate, setStartDate] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  });
+
   // 3. Analytics (gated — Basic/Premium only)
   const { data: analyticsRes } = useQuery({
-    queryKey: ['owner-analytics-wallet'],
-    queryFn: () => ownerApi.getAnalytics(),
+    queryKey: ['owner-analytics-wallet', startDate, endDate],
+    queryFn: () => ownerApi.getAnalytics({ start_date: startDate, end_date: endDate }),
     enabled: hasAnalytics,
   });
   const analytics = analyticsRes?.data;
-  const last6Months = analytics?.monthly?.slice(-6) || [];
+
+  const processedData = useMemo(() => {
+    if (!analytics?.daily || !Array.isArray(analytics.daily) || analytics.daily.length === 0) {
+      return {
+        categories: [],
+        series: [
+          { name: 'Doanh thu (đ)', type: 'area', data: [] },
+          { name: 'Số lượt đặt', type: 'column', data: [] }
+        ]
+      };
+    }
+
+    // Sort data by date (oldest to newest)
+    const sortedData = [...analytics.daily]
+      .filter((item: any) => item?.date)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    const categories = sortedData.map(item => {
+      const date = new Date(item.date);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      return `${day}/${month}`;
+    });
+
+    const revenueData = sortedData.map(item => Number.isFinite(Number(item.revenue)) ? Number(item.revenue) : 0);
+    const countData = sortedData.map(item => Number.isFinite(Number(item.count)) ? Number(item.count) : 0);
+
+    return {
+      categories,
+      series: [
+        { name: 'Doanh thu (đ)', type: 'area', data: revenueData },
+        { name: 'Số lượt đặt', type: 'column', data: countData }
+      ]
+    };
+  }, [analytics?.daily]);
+
+  const chartOptions = useChart({
+    xaxis: {
+      categories: processedData.categories,
+    },
+    tooltip: {
+      y: {
+        formatter: (value: number, { seriesIndex }: any) => {
+          if (value === undefined || value === null) return '';
+          if (seriesIndex === 0) {
+            return `${new Intl.NumberFormat('vi-VN').format(value)}đ`;
+          }
+          return `${value} lượt đặt`;
+        },
+      },
+      shared: true,
+    },
+    dataLabels: {
+      enabled: false,
+    },
+    yaxis: [
+      {
+        title: {
+          text: 'Doanh thu (đ)',
+        },
+        labels: {
+          formatter: (val: number) => {
+            if (val >= 1_000_000) {
+              return `${(val / 1_000_000).toFixed(1)}M`;
+            }
+            if (val >= 1_000) {
+              return `${(val / 1_000).toFixed(0)}k`;
+            }
+            return `${val}`;
+          }
+        },
+        min: 0,
+        max: Math.max(...(processedData.series[0]?.data || [0])) * 1.15 || 100000,
+      },
+      {
+        opposite: true,
+        title: {
+          text: 'Số lượt đặt',
+        },
+        min: 0,
+        max: Math.ceil(Math.max(...(processedData.series[1]?.data || [0])) * 1.15) || 5,
+        tickAmount: 5,
+        labels: {
+          formatter: (val: number) => Math.round(val).toString()
+        }
+      }
+    ],
+    stroke: {
+      curve: 'smooth',
+      width: [3, 2],
+    },
+    legend: {
+      position: 'top',
+      horizontalAlign: 'right',
+    },
+    colors: ['#22C55E', '#0F172A'],
+    fill: {
+      type: ['gradient', 'solid'],
+      gradient: {
+        shadeIntensity: 1,
+        opacityFrom: 0.4,
+        opacityTo: 0.1,
+        stops: [0, 100],
+      },
+    },
+  });
 
   const withdrawMutation = useMutation({
     mutationFn: (data: any) => withdrawalApi.requestWithdrawal(data),
@@ -301,11 +416,11 @@ const OwnerWallet = () => {
 
       {/* Revenue Analytics Chart */}
       <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, mb: 4, border: '1px solid #E2E8F0' }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }} spacing={2} sx={{ mb: 3 }}>
           <Stack direction="row" spacing={1.5} alignItems="center">
             <TrendingUp sx={{ color: '#10B981' }} />
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 900 }}>Doanh thu 6 tháng</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 900 }}>Phân tích doanh thu</Typography>
               {!hasAnalytics && (
                 <Typography variant="caption" sx={{ color: '#92400E', fontWeight: 700 }}>
                   🔒 Tính năng dành cho gói Basic/Premium
@@ -313,51 +428,68 @@ const OwnerWallet = () => {
               )}
             </Box>
           </Stack>
-          {hasAnalytics && last6Months.length > 0 && (
-            <Stack direction="row" spacing={3}>
-              <Box sx={{ textAlign: 'right' }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block' }}>TỔNG 6 THÁNG</Typography>
-                <Typography variant="body1" sx={{ fontWeight: 900, color: '#10B981' }}>
-                  {new Intl.NumberFormat('vi-VN').format(last6Months.reduce((s: number, m: any) => s + m.revenue, 0))}đ
-                </Typography>
-              </Box>
-              <Box sx={{ textAlign: 'right' }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block' }}>SỐ ĐẶT</Typography>
-                <Typography variant="body1" sx={{ fontWeight: 900 }}>
-                  {last6Months.reduce((s: number, m: any) => s + m.count, 0)}
-                </Typography>
-              </Box>
+
+          {hasAnalytics && (
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" width={{ xs: '100%', md: 'auto' }}>
+              <Stack direction="row" spacing={1.5}>
+                <TextField
+                  label="Từ ngày"
+                  type="date"
+                  size="small"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ width: 140 }}
+                />
+                <TextField
+                  label="Đến ngày"
+                  type="date"
+                  size="small"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ width: 140 }}
+                />
+              </Stack>
+              {processedData.categories.length > 0 && (
+                <Stack direction="row" spacing={2} sx={{ ml: { sm: 2 } }}>
+                  <Box sx={{ textAlign: 'right' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block' }}>TỔNG DOANH THU</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 900, color: '#10B981' }}>
+                      {new Intl.NumberFormat('vi-VN').format(analytics?.totalRevenue || 0)}đ
+                    </Typography>
+                  </Box>
+                  <Box sx={{ textAlign: 'right' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block' }}>SỐ ĐẶT</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 900 }}>
+                      {analytics?.totalBookings || 0}
+                    </Typography>
+                  </Box>
+                </Stack>
+              )}
             </Stack>
           )}
         </Stack>
 
         {hasAnalytics ? (
-          last6Months.length > 0 ? (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={last6Months} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fontWeight: 600 }} />
-                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v/1000000).toFixed(1)}M`} width={45} />
-                <ReTooltip
-                  formatter={(val: any) => [new Intl.NumberFormat('vi-VN').format(val) + 'đ', 'Doanh thu']}
-                  contentStyle={{ borderRadius: 8, fontSize: 12, fontWeight: 700, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: 'none' }}
-                />
-                <Bar dataKey="revenue" radius={[6, 6, 0, 0]} maxBarSize={60}>
-                  {last6Months.map((_: any, i: number) => (
-                    <Cell key={i} fill={i === last6Months.length - 1 ? '#10B981' : '#A7F3D0'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          processedData.categories.length > 0 ? (
+            <Box sx={{ mt: 2 }}>
+              <Chart
+                type="line"
+                series={processedData.series}
+                options={chartOptions}
+                height={280}
+              />
+            </Box>
           ) : (
             <Box sx={{ textAlign: 'center', py: 6 }}>
-              <Typography variant="body2" color="text.secondary">Chưa có dữ liệu doanh thu trong 6 tháng qua.</Typography>
+              <Typography variant="body2" color="text.secondary">Chưa có dữ liệu doanh thu trong khoảng thời gian này.</Typography>
             </Box>
           )
         ) : (
           <Box sx={{ py: 6, textAlign: 'center', bgcolor: '#FAFAFA', borderRadius: 2, border: '1px dashed #E2E8F0' }}>
             <Lock sx={{ fontSize: 40, color: '#CBD5E1', mb: 1 }} />
-            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.secondary', mb: 0.5 }}>Biểu đồ doanh thu theo tháng</Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.secondary', mb: 0.5 }}>Biểu đồ doanh thu theo khoảng thời gian</Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
               Nâng cấp lên gói Basic hoặc Premium để xem phân tích doanh thu, xu hướng đặt sân và các chỉ số kinh doanh chi tiết.
             </Typography>
@@ -368,6 +500,91 @@ const OwnerWallet = () => {
           </Box>
         )}
       </Paper>
+
+      {/* Venue & Court Revenue Report */}
+      {hasAnalytics && (
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          {/* Revenue by Venue */}
+          <Grid item xs={12} md={6}>
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', height: '100%' }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 2 }}>
+                Doanh thu theo cơ sở (Venues)
+              </Typography>
+              <TableContainer sx={{ maxHeight: 300 }}>
+                <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 800, bgcolor: '#F8FAFC' }}>Cơ sở</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, bgcolor: '#F8FAFC' }}>Số đặt</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, bgcolor: '#F8FAFC' }}>Doanh thu</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {analytics?.venueReport && analytics.venueReport.length > 0 ? (
+                      analytics.venueReport.map((v: any) => (
+                        <TableRow key={v.id} hover>
+                          <TableCell sx={{ fontWeight: 700 }}>{v.name}</TableCell>
+                          <TableCell align="right">{v.count}</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 800, color: '#10B981' }}>
+                            {new Intl.NumberFormat('vi-VN').format(v.revenue)}đ
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={3} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                          Không có dữ liệu
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+          </Grid>
+
+          {/* Revenue by Court */}
+          <Grid item xs={12} md={6}>
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, border: '1px solid #E2E8F0', height: '100%' }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 2 }}>
+                Doanh thu theo sân con (Courts)
+              </Typography>
+              <TableContainer sx={{ maxHeight: 300 }}>
+                <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 800, bgcolor: '#F8FAFC' }}>Sân con</TableCell>
+                      <TableCell sx={{ fontWeight: 800, bgcolor: '#F8FAFC' }}>Cơ sở</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, bgcolor: '#F8FAFC' }}>Số đặt</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, bgcolor: '#F8FAFC' }}>Doanh thu</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {analytics?.courtReport && analytics.courtReport.length > 0 ? (
+                      analytics.courtReport.map((c: any) => (
+                        <TableRow key={c.id} hover>
+                          <TableCell sx={{ fontWeight: 700 }}>{c.name}</TableCell>
+                          <TableCell sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>{c.venue_name}</TableCell>
+                          <TableCell align="right">{c.count}</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 800, color: '#10B981' }}>
+                            {new Intl.NumberFormat('vi-VN').format(c.revenue)}đ
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                          Không có dữ liệu
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+          </Grid>
+        </Grid>
+      )}
 
       {/* Cashflow Table */}
       <Grid container spacing={4}>
