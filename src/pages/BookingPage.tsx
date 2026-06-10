@@ -10,7 +10,7 @@ import {
 import { 
   ArrowBack, CheckCircle, Payments,
   CalendarMonth, Info, Person, Phone, Email,
-  AccountBalanceWallet, Lock
+  AccountBalanceWallet, Lock, ConfirmationNumber
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import dayjs, { Dayjs } from 'dayjs';
@@ -19,6 +19,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 
 import { venueApi } from '@/api/venueApi';
 import { bookingApi } from '@/api/bookingApi';
+import { couponApi } from '@/api/couponApi';
 import { useAuthStore } from '@/stores/authStore';
 import { socketService } from '@/utils/socket';
 
@@ -40,6 +41,55 @@ const BookingPage = () => {
   const [notes, setNotes] = useState('');
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'vnpay' | 'wallet'>('vnpay');
+
+  // Coupon States
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [couponError, setCouponError] = useState('');
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError('Vui lòng nhập mã giảm giá');
+      return;
+    }
+    setCouponError('');
+    setIsValidatingCoupon(true);
+    try {
+      const res = await couponApi.validateCoupon({
+        code: couponCode.trim(),
+        venue_id: venue.id,
+        total_amount: totalPrice
+      });
+      if (res.data) {
+        setAppliedCoupon(res.data);
+        enqueueSnackbar('Áp dụng mã giảm giá thành công!', { variant: 'success' });
+      } else {
+        setCouponError('Mã giảm giá không hợp lệ');
+      }
+    } catch (err: any) {
+      setCouponError(err.response?.data?.message || err.message || 'Mã giảm giá không hợp lệ');
+      setAppliedCoupon(null);
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponCode('');
+    setAppliedCoupon(null);
+    setCouponError('');
+  };
+
+  const handleCloseConfirm = () => {
+    setIsConfirmOpen(false);
+    handleRemoveCoupon();
+  };
+
+  // Reset coupon if selected slot IDs change
+  useEffect(() => {
+    handleRemoveCoupon();
+  }, [selectedSlotIds]);
 
   // Customer info state
   const [customerInfo, setCustomerInfo] = useState({
@@ -141,6 +191,7 @@ const BookingPage = () => {
     onSuccess: (res: any) => {
       enqueueSnackbar('Đặt sân thành công! 🎉', { variant: 'success' });
       setIsConfirmOpen(false);
+      handleRemoveCoupon();
       if (res.data?.paymentUrl || res.paymentUrl) {
         window.location.href = res.data?.paymentUrl || res.paymentUrl;
       } else {
@@ -171,7 +222,8 @@ const BookingPage = () => {
       payment_method: paymentMethod,
       customer_name: name,
       customer_phone: phone,
-      customer_email: email
+      customer_email: email,
+      coupon_code: appliedCoupon ? appliedCoupon.code : undefined
     });
   };
 
@@ -370,7 +422,7 @@ const BookingPage = () => {
 
         {/* Confirmation Dialog */}
         <Dialog 
-          open={isConfirmOpen} onClose={() => setIsConfirmOpen(false)} 
+          open={isConfirmOpen} onClose={handleCloseConfirm} 
           maxWidth="sm" fullWidth
           PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
         >
@@ -394,10 +446,28 @@ const BookingPage = () => {
                     </Box>
                   ))}
                   <Divider sx={{ my: 1, borderColor: '#BAE6FD', borderStyle: 'dashed' }} />
+                  
+                  {appliedCoupon && (
+                    <>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 1, mb: 0.5 }}>
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>Tạm tính:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+                          {new Intl.NumberFormat('vi-VN').format(totalPrice)}đ
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 1, mb: 0.5 }}>
+                        <Typography variant="body2" sx={{ color: 'success.main', fontWeight: 700 }}>Khuyến mãi ({appliedCoupon.code}):</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 800, color: 'success.main' }}>
+                          -{new Intl.NumberFormat('vi-VN').format(appliedCoupon.discount_amount)}đ
+                        </Typography>
+                      </Box>
+                    </>
+                  )}
+
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 1 }}>
-                    <Typography variant="body1" sx={{ fontWeight: 900 }}>Tổng tiền:</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 900 }}>Tổng thanh toán:</Typography>
                     <Typography variant="h5" sx={{ fontWeight: 900, color: 'primary.main' }}>
-                      {new Intl.NumberFormat('vi-VN').format(totalPrice)}đ
+                      {new Intl.NumberFormat('vi-VN').format(appliedCoupon ? appliedCoupon.final_amount : totalPrice)}đ
                     </Typography>
                   </Box>
                 </Stack>
@@ -431,6 +501,49 @@ const BookingPage = () => {
                  </Stack>
                </Box>
 
+               {/* Coupon Section */}
+               <Box>
+                 <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <ConfirmationNumber fontSize="small" color="primary" /> MÃ GIẢM GIÁ
+                 </Typography>
+                 <Stack direction="row" spacing={1} alignItems="flex-start">
+                    <TextField 
+                      label="Mã giảm giá" 
+                      placeholder="Nhập mã giảm giá..."
+                      size="small"
+                      fullWidth 
+                      value={couponCode}
+                      disabled={!!appliedCoupon || isValidatingCoupon}
+                      onChange={(e) => {
+                        setCouponCode(e.target.value.toUpperCase());
+                        setCouponError('');
+                      }}
+                      error={!!couponError}
+                      helperText={couponError}
+                      InputProps={{ sx: { borderRadius: 1.5 } }}
+                    />
+                    {appliedCoupon ? (
+                      <Button 
+                        variant="outlined" 
+                        color="error" 
+                        onClick={handleRemoveCoupon}
+                        sx={{ borderRadius: 1.5, px: 3, height: '40px', minWidth: 100, whiteSpace: 'nowrap' }}
+                      >
+                        Hủy
+                      </Button>
+                    ) : (
+                      <Button 
+                        variant="contained" 
+                        onClick={handleApplyCoupon}
+                        disabled={isValidatingCoupon || !couponCode.trim()}
+                        sx={{ borderRadius: 1.5, px: 3, height: '40px', minWidth: 100, whiteSpace: 'nowrap' }}
+                      >
+                        {isValidatingCoupon ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Áp dụng'}
+                      </Button>
+                    )}
+                 </Stack>
+               </Box>
+
                <Box>
                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5 }}>PHƯƠNG THỨC THANH TOÁN:</Typography>
                  <Stack spacing={1.5}>
@@ -438,7 +551,8 @@ const BookingPage = () => {
                    {/* Ví tiền */}
                    {(() => {
                      const walletBal = parseFloat(String(user?.wallet_balance || 0));
-                     const canUseWallet = walletBal >= totalPrice;
+                     const finalPrice = appliedCoupon ? appliedCoupon.final_amount : totalPrice;
+                     const canUseWallet = walletBal >= finalPrice;
                      return (
                        <Paper
                          variant="outlined"
@@ -468,7 +582,7 @@ const BookingPage = () => {
                                <Stack direction="row" spacing={0.5} alignItems="center">
                                  <Lock sx={{ fontSize: 11, color: '#EF4444' }} />
                                  <Typography variant="caption" color="error" sx={{ fontWeight: 700 }}>
-                                   Không đủ số dư (thiếu {new Intl.NumberFormat('vi-VN').format(totalPrice - walletBal)}đ)
+                                   Không đủ số dư (thiếu {new Intl.NumberFormat('vi-VN').format(finalPrice - walletBal)}đ)
                                  </Typography>
                                </Stack>
                              )}
@@ -512,7 +626,7 @@ const BookingPage = () => {
             </Stack>
           </DialogContent>
           <DialogActions sx={{ p: 3, gap: 1 }}>
-            <Button onClick={() => setIsConfirmOpen(false)} sx={{ fontWeight: 700 }}>QUAY LẠI</Button>
+            <Button onClick={handleCloseConfirm} sx={{ fontWeight: 700 }}>QUAY LẠI</Button>
             <Button 
               variant="contained"
               color={paymentMethod === 'wallet' ? 'success' : 'primary'}
