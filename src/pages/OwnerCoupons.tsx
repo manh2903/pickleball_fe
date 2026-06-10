@@ -109,6 +109,15 @@ const OwnerCoupons = () => {
       )
     },
     {
+      key: 'venue',
+      label: 'Cơ sở',
+      render: (c) => (
+        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+          {c.venue?.name || '—'}
+        </Typography>
+      )
+    },
+    {
       key: 'discount_value',
       label: 'Giá trị giảm',
       render: (c) => (

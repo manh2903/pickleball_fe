@@ -136,7 +136,7 @@ const OwnerIncidents = () => {
                     sx={{ fontWeight: 800, borderRadius: 1 }}
                   />
                 </TableCell>
-                <TableCell>{new Date(incident.created_at).toLocaleDateString('vi-VN')}</TableCell>
+                <TableCell>{new Date(incident.created_at || incident.createdAt).toLocaleDateString('vi-VN')}</TableCell>
                 <TableCell>{incident.reporter?.name}</TableCell>
                 <TableCell align="right">
                   <Tooltip title="Xem chi tiết & Xử lý">
@@ -178,7 +178,7 @@ const OwnerIncidents = () => {
             </Box>
             <Box>
               <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Ngày báo:</Typography>
-              <Typography variant="body2">{selectedIncident && new Date(selectedIncident.created_at).toLocaleString('vi-VN')}</Typography>
+              <Typography variant="body2">{selectedIncident && new Date(selectedIncident.created_at || selectedIncident.createdAt).toLocaleString('vi-VN')}</Typography>
             </Box>
           </Box>
 
